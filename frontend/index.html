@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordchain - เกมต่อคำศัพท์ภาษาไทย</title>
+    <style>
+        body { font-family: 'Kanit', sans-serif; text-align: center; padding: 20px; }
+        .hidden { display: none !important; }
+        .player-list { display: flex; justify-content: center; gap: 15px; margin: 20px 0; }
+        .player-card { border: 1px solid #ccc; padding: 10px; border-radius: 8px; }
+        .player-card img { width: 50px; height: 50px; border-radius: 50%; }
+        #debateUI { background: #ffebee; padding: 20px; border: 2px solid #f44336; border-radius: 10px; margin-top: 20px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+    <h1>Wordchain 🔗</h1>
+
+    <!-- หน้า Lobby สำหรับใส่ชื่อและรอก่อนเริ่มเกม -->
+    <div id="lobbyUI">
+        <input type="text" id="roomIdInput" placeholder="ชื่อห้อง (เช่น room1)" value="room1">
+        <input type="text" id="playerName" placeholder="ชื่อของคุณ">
+        <input type="file" id="avatarUpload" accept="image/*">
+        <button onclick="joinGame()">เข้าห้อง</button>
+        
+        <div id="roomInfo" class="hidden">
+            <h3>ผู้เล่นในห้อง (ต้องมีอย่างน้อย 3 คน)</h3>
+            <div id="playersInLobby" class="player-list"></div>
+            <button id="startGameBtn" class="hidden" onclick="startGame()">▶️ เริ่มเกม</button>
+        </div>
+    </div>
+
+    <!-- หน้า Game UI เมื่อเกมเริ่ม -->
+    <div id="gameUI" class="hidden">
+        <h2 id="roundDisplay">รอบที่ 1</h2>
+        <h3 id="turnDisplay" style="color: blue;">รอเกมเริ่ม...</h3>
+        <h1 id="timerDisplay">5.0s</h1>
+
+        <div style="margin: 20px 0; font-size: 24px;">
+            คำล่าสุด: <strong id="lastWordsDisplay">-</strong>
+        </div>
+
+        <button id="micBtn" onmousedown="startSpeaking()" onmouseup="stopSpeaking()" disabled>🎤 กดค้างเพื่อพูด</button>
+        <button id="challengeBtn" onclick="initiateChallenge()" disabled>⚖️ ท้วงคำเชื่อม (Challenge)</button>
+
+        <div id="playersInGame" class="player-list"></div>
+
+        <!-- หน้าต่างสำหรับโหวต -->
+        <div id="debateUI" class="hidden">
+            <h3 style="color: red;">🚨 มีการท้วงคำ (Challenge!) 🚨</h3>
+            <p id="debateMessage"></p>
+            <div id="voteButtons" class="hidden">
+                <p>คุณคิดว่าใครถูก?</p>
+                <button id="voteChallengerBtn" onclick="submitVote('challenger')">คนท้วงถูก (คำไม่เชื่อม)</button>
+                <button id="voteChallengedBtn" onclick="submitVote('challenged')">คนตอบถูก (คำเชื่อมแล้ว)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ต้องลง Socket.io Client -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="client.js"></script>
+</body>
+</html> 

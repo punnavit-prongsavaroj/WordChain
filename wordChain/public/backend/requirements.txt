@@ -1,6 +1,0 @@
-fastapi==0.104.1
-uvicorn==0.24.0
-python-multipart==0.0.6
-openai-whisper==20231117
-pythainlp==4.0.2
-torch
