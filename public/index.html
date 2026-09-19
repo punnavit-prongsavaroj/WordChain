@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Chain - Voice Multiplayer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Prompt:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script type="module" src="src/main.js" defer></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Auth Screen -->
+        <div id="auth-screen" class="screen active">
+            <div class="glass-panel">
+                <h1 class="title">Word Chain <span class="accent">Voice</span></h1>
+                <p class="subtitle">ต่อคำศัพท์ด้วยเสียงแบบเรียลไทม์</p>
+                
+                <div class="input-group">
+                    <input type="text" id="player-name-input" placeholder="กรอกชื่อของคุณ" maxlength="15">
+                </div>
+                
+                <button id="login-btn" class="primary-btn">เข้าสู่ระบบ (Anonymous)</button>
+                <div id="auth-status" class="status-text"></div>
+
+                <!-- Mic Test Section -->
+                <div class="mic-test-section">
+                    <div class="mic-test-header">
+                        <span>🎤 ทดสอบไมโครโฟน</span>
+                    </div>
+                    <button id="mic-test-btn" class="mic-test-btn">
+                        <span class="mic-test-icon">🎙️</span>
+                        <span id="mic-test-label">กดค้างแล้วพูด</span>
+                    </button>
+                    <div id="mic-test-result" class="mic-test-result">
+                        <span class="placeholder-text">ผลลัพธ์จะแสดงที่นี่...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lobby Screen -->
+        <div id="lobby-screen" class="screen hidden">
+            <div class="glass-panel">
+                <div class="header">
+                    <h2>Lobby</h2>
+                    <span id="player-name-display" class="player-badge"></span>
+                </div>
+                
+                <div class="actions">
+                    <button id="create-room-btn" class="primary-btn">สร้างห้องใหม่</button>
+                    <div class="divider"><span>หรือ</span></div>
+                    <div class="input-group">
+                        <input type="text" id="room-code-input" placeholder="กรอกรหัสห้อง" maxlength="6">
+                        <button id="join-room-btn" class="secondary-btn">เข้าร่วม</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Room Waiting Screen -->
+        <div id="room-screen" class="screen hidden">
+            <div class="glass-panel">
+                <div class="header">
+                    <h2>Room: <span id="current-room-code" class="accent"></span></h2>
+                    <span id="room-host-badge" class="host-badge hidden">👑 Host</span>
+                </div>
+                
+                <div class="players-list-container">
+                    <h3>ผู้เล่น (<span id="player-count">0</span>/10)</h3>
+                    <ul id="waiting-players-list" class="players-list">
+                        <!-- Players injected here -->
+                    </ul>
+                </div>
+                
+                <div class="settings" id="host-settings">
+                    <label>จำนวนรอบ: 
+                        <select id="rounds-select">
+                            <option value="3">3 รอบ</option>
+                            <option value="5" selected>5 รอบ</option>
+                            <option value="10">10 รอบ</option>
+                        </select>
+                    </label>
+                </div>
+                
+                <div class="actions flex-between">
+                    <button id="leave-room-btn" class="danger-btn">ออก</button>
+                    <button id="start-game-btn" class="primary-btn hidden">เริ่มเกม</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen hidden">
+            <!-- Top Bar -->
+            <div class="game-top-bar">
+                <div class="round-info">Round <span id="current-round">1</span>/<span id="total-rounds">5</span></div>
+                <div class="turn-info">
+                    Turn: <span id="current-turn-name" class="accent-text"></span>
+                </div>
+                <div class="timer-container">
+                    <div id="timer-display" class="timer">5.0</div>
+                </div>
+            </div>
+            
+            <div class="game-content">
+                <!-- Main Area -->
+                <div class="main-play-area">
+                    <div class="latest-word-container">
+                        <div class="label">คำล่าสุด</div>
+                        <div id="latest-word" class="word-display">-</div>
+                    </div>
+                    
+                    <div class="voice-status-container">
+                        <div id="voice-indicator" class="voice-indicator">
+                            <span class="mic-icon">🎤</span>
+                            <span id="voice-status-text">รอถึงตาของคุณ...</span>
+                        </div>
+                    </div>
+
+                    <!-- Push-to-Talk Button -->
+                    <div id="ptt-area" class="ptt-area hidden">
+                        <button id="ptt-btn" class="ptt-btn">
+                            <span class="ptt-icon">🎙️</span>
+                            <span class="ptt-label">กดเพื่อพูด</span>
+                        </button>
+                        <p class="ptt-hint">กดปุ่มแล้วพูดคำนามภาษาไทย</p>
+                    </div>
+                    
+                    <!-- Challenge Overlay (shows after word accepted) -->
+                    <div id="challenge-overlay" class="challenge-overlay hidden">
+                        <div class="challenge-content">
+                            <p class="challenge-label">🤔 คำนี้ถูกต้องหรือไม่?</p>
+                            <button id="challenge-btn" class="challenge-btn-big">🚨 Challenge!</button>
+                            <div class="challenge-countdown">
+                                <div id="challenge-countdown-bar" class="challenge-countdown-bar"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vote Modal -->
+                    <div id="vote-modal" class="vote-modal hidden">
+                        <div class="vote-modal-content glass-panel">
+                            <h3>⚖️ Challenge Vote</h3>
+                            <p>คำที่ถูก Challenge:</p>
+                            <div id="vote-word-display" class="vote-word"></div>
+                            
+                            <div id="vote-timer-display" class="vote-timer">5:00</div>
+                            
+                            <div id="vote-buttons" class="vote-buttons">
+                                <button id="vote-valid-btn" class="vote-btn-valid">✅ คำถูกต้อง</button>
+                                <button id="vote-invalid-btn" class="vote-btn-invalid">❌ คำไม่ถูกต้อง</button>
+                            </div>
+                            
+                            <div id="vote-waiting" class="vote-waiting hidden">
+                                ⏳ รอผู้เล่นอื่นโหวต...
+                            </div>
+                            
+                            <div class="vote-live-results">
+                                <span>✅ <span id="vote-valid-count">0</span></span>
+                                <span> | </span>
+                                <span>❌ <span id="vote-invalid-count">0</span></span>
+                                <span class="vote-total"> (<span id="vote-total">0/0</span>)</span>
+                            </div>
+                            
+                            <div id="vote-result" class="vote-result hidden"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sidebar -->
+                <div class="game-sidebar">
+                    <div class="players-status-container glass-panel-small">
+                        <h3>Players Status</h3>
+                        <ul id="game-players-list" class="players-status-list">
+                            <!-- Player status injected here -->
+                        </ul>
+                    </div>
+                    
+                    <div class="word-history-container glass-panel-small">
+                        <h3>History</h3>
+                        <ul id="word-history-list" class="history-list">
+                            <!-- Word history injected here -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Round Transition Overlay -->
+        <div id="round-transition" class="round-transition-overlay hidden">
+            <div class="round-transition-content">
+                <h2>🏆 Round <span id="transition-round">1</span> จบ!</h2>
+                <p class="transition-winner">ผู้ชนะ: <span id="transition-winner" class="accent">-</span></p>
+                <p class="transition-hint">เตรียมตัวรอบถัดไป...</p>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over-screen" class="screen hidden">
+            <div class="glass-panel">
+                <h1 class="title">Game Over</h1>
+                <div id="winner-display" class="winner"></div>
+                
+                <div class="scoreboard-container">
+                    <h3>Scoreboard</h3>
+                    <ul id="final-scoreboard" class="scoreboard">
+                        <!-- Scores injected here -->
+                    </ul>
+                </div>
+                
+                <div style="display: flex; gap: 10px; width: 100%;">
+                    <button id="back-to-lobby-btn" class="secondary-btn" style="flex: 1;">ออกไปหน้าแรก</button>
+                    <button id="play-again-btn" class="primary-btn hidden" style="flex: 2;">เล่นอีกครั้ง</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
