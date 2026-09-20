@@ -75,9 +75,10 @@ export async function nextTurn(roomId, currentPlayerId, playersList, isEliminate
     });
 }
 
-export async function eliminatePlayer(roomId, playerId) {
+export async function eliminatePlayer(roomId, playerId, reason = "คัดออก") {
     await updateDoc(doc(db, `rooms/${roomId}/players`, playerId), {
-        eliminated: true
+        eliminated: true,
+        deathReason: reason
     });
 }
 

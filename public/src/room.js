@@ -47,19 +47,31 @@ export async function joinRoom(roomId, user) {
     }
     
     const roomData = roomSnap.data();
-    if (roomData.status !== "waiting") {
+    
+    // Check if user is already in the room
+    const playerRef = doc(db, `rooms/${roomId}/players`, user.uid);
+    const playerSnap = await getDoc(playerRef);
+    
+    if (roomData.status !== "waiting" && !playerSnap.exists()) {
         throw new Error("ห้องนี้เริ่มเกมไปแล้ว");
     }
     
-    // Add user as player
-    await setDoc(doc(db, `rooms/${roomId}/players`, user.uid), {
-        name: user.name,
-        score: 0,
-        eliminated: false,
-        wins: 0,
-        online: true,
-        joinedAt: new Date()
-    });
+    // Add or update user as player
+    if (!playerSnap.exists()) {
+        await setDoc(playerRef, {
+            name: user.name,
+            score: 0,
+            eliminated: false,
+            wins: 0,
+            online: true,
+            joinedAt: new Date()
+        });
+    } else {
+        await updateDoc(playerRef, {
+            online: true,
+            name: user.name
+        });
+    }
     
     currentRoomId = roomId;
     return roomId;

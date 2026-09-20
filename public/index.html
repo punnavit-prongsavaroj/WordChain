@@ -6,6 +6,7 @@
     <title>Word Chain - Voice Multiplayer</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Prompt:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="theme.css">
     <!-- Firebase App (the core Firebase SDK) -->
     <script type="module" src="src/main.js" defer></script>
 </head>
@@ -13,7 +14,7 @@
     <div id="app">
         <!-- Auth Screen -->
         <div id="auth-screen" class="screen active">
-            <div class="glass-panel">
+            <div class="glass-panel card-panel">
                 <h1 class="title">Word Chain <span class="accent">Voice</span></h1>
                 <p class="subtitle">ต่อคำศัพท์ด้วยเสียงแบบเรียลไทม์</p>
                 
@@ -25,11 +26,11 @@
                 <div id="auth-status" class="status-text"></div>
 
                 <!-- Mic Test Section -->
-                <div class="mic-test-section">
+                <div class="mic-test-section feature-container">
                     <div class="mic-test-header">
                         <span>🎤 ทดสอบไมโครโฟน</span>
                     </div>
-                    <button id="mic-test-btn" class="mic-test-btn">
+                    <button id="mic-test-btn" class="mic-test-btn action-card-btn">
                         <span class="mic-test-icon">🎙️</span>
                         <span id="mic-test-label">กดค้างแล้วพูด</span>
                     </button>
@@ -42,7 +43,7 @@
 
         <!-- Lobby Screen -->
         <div id="lobby-screen" class="screen hidden">
-            <div class="glass-panel">
+            <div class="glass-panel card-panel">
                 <div class="header">
                     <h2>Lobby</h2>
                     <span id="player-name-display" class="player-badge"></span>
@@ -55,6 +56,8 @@
                         <input type="text" id="room-code-input" placeholder="กรอกรหัสห้อง" maxlength="6">
                         <button id="join-room-btn" class="secondary-btn">เข้าร่วม</button>
                     </div>
+                    <div class="divider"><span></span></div>
+                    <button id="logout-btn" class="danger-btn" style="margin-top: 10px;">ออกจากระบบ / เปลี่ยนชื่อ</button>
                 </div>
             </div>
         </div>
@@ -95,10 +98,8 @@
         <div id="game-screen" class="screen hidden">
             <!-- Top Bar -->
             <div class="game-top-bar">
-                <div class="round-info">Round <span id="current-round">1</span>/<span id="total-rounds">5</span></div>
-                <div class="turn-info">
-                    Turn: <span id="current-turn-name" class="accent-text"></span>
-                </div>
+                <button id="leave-game-btn" class="danger-btn" style="padding: 6px 12px; font-size: 0.9rem; border-radius: 6px;">ออกห้อง</button>
+                <div class="round-info" style="flex: 1; text-align: center;">Round <span id="current-round">1</span>/<span id="total-rounds">5</span></div>
                 <div class="timer-container">
                     <div id="timer-display" class="timer">5.0</div>
                 </div>
@@ -107,6 +108,10 @@
             <div class="game-content">
                 <!-- Main Area -->
                 <div class="main-play-area">
+                    <div class="turn-info">
+                        Turn: <span id="current-turn-name" class="accent-text"></span>
+                    </div>
+                    
                     <div class="latest-word-container">
                         <div class="label">คำล่าสุด</div>
                         <div id="latest-word" class="word-display">-</div>
@@ -194,6 +199,14 @@
                 <h2>🏆 Round <span id="transition-round">1</span> จบ!</h2>
                 <p class="transition-winner">ผู้ชนะ: <span id="transition-winner" class="accent">-</span></p>
                 <p class="transition-hint">เตรียมตัวรอบถัดไป...</p>
+            </div>
+        </div>
+
+        <!-- Death Overlay -->
+        <div id="death-overlay" class="death-overlay hidden">
+            <div class="death-content">
+                <h1 class="death-title">💀 คัดออก!</h1>
+                <p id="death-reason" class="death-reason">หมดเวลา</p>
             </div>
         </div>
 

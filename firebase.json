@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "word-chain-beta",
     "public": "public",
     "ignore": [
       "firebase.json",

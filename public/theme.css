@@ -1,0 +1,518 @@
+/* UNO-Style UI Theme Overrides */
+
+:root {
+  /* Brand 4 colors */
+  --red: #ED1C24;    --red-d: #C4161C;
+  --blue: #0098DA;   --blue-d: #0072A8;
+  --green: #00A651;  --green-d: #007A3C;
+  --yellow: #FFC800; --yellow-d: #E0A800;
+  
+  /* Table */
+  --table-1: #2A7FBF; --table-2: #14568F;
+  --table-3: #0A3160; --table-4: #041C3A;
+  
+  /* Neutral */
+  --card-white: #FFFFFF; 
+  --ink: #141414; 
+  --ink-soft: #3A3A3A;
+  
+  /* FX */
+  --cyan: #35C6FF; 
+  --cyan-glow: rgba(53, 198, 255, 0.55);
+  --shadow: rgba(0, 0, 0, 0.45);
+  
+  --radius-card: 9px; 
+  --radius-pill: 999px;
+  --transition: .18s cubic-bezier(.2,.9,.3,1);
+}
+
+/* Background Table */
+body, .screen {
+  background: 
+    repeating-linear-gradient(
+      135deg,
+      rgba(255,255,255,0.025),
+      rgba(255,255,255,0.025) 20px,
+      transparent 20px,
+      transparent 40px
+    ),
+    radial-gradient(circle at center, var(--table-1) 0%, var(--table-4) 100%) !important;
+  color: var(--card-white);
+}
+
+/* Cards & Panels */
+.card-panel {
+  background: var(--card-white) !important;
+  border: 3px solid #fff !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: 0 6px 14px var(--shadow) !important;
+  color: var(--ink) !important;
+  backdrop-filter: none !important;
+}
+
+/* Fix text contrast in cards */
+.card-panel h1, .card-panel h2, .card-panel p, .card-panel .subtitle {
+  color: var(--ink) !important;
+}
+
+.card-panel .accent {
+  color: var(--red) !important;
+}
+
+/* Generic Containers */
+.feature-container, .players-list-container, .word-history-container, .players-status-container {
+  border: 3px solid rgba(255, 255, 255, 0.95) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(4px) !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: 0 4px 0 var(--shadow);
+  color: #fff;
+}
+.players-status-container h3, .word-history-container h3 {
+  color: #fff !important;
+}
+
+/* Center elements (No square boxes) */
+.latest-word-container, .voice-status-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  text-align: center;
+}
+
+/* Chunky Buttons */
+button {
+  transition: var(--transition) !important;
+}
+button:focus {
+  outline: 2px solid var(--cyan) !important;
+  box-shadow: 0 0 10px var(--cyan-glow) !important;
+}
+
+.primary-btn {
+  background: linear-gradient(to bottom, var(--red), var(--red-d)) !important;
+  border: 2px solid #fff !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+}
+.primary-btn:active {
+  transform: translateY(4px) !important;
+  box-shadow: 0 0px 0 rgba(0, 0, 0, 0.35) !important;
+}
+
+.secondary-btn {
+  background: linear-gradient(to bottom, var(--blue), var(--blue-d)) !important;
+  border: 2px solid #fff !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+}
+.secondary-btn:active {
+  transform: translateY(4px) !important;
+  box-shadow: 0 0px 0 rgba(0, 0, 0, 0.35) !important;
+}
+
+.danger-btn {
+  background: linear-gradient(to bottom, var(--ink-soft), var(--ink)) !important;
+  border: 2px solid #fff !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+}
+.danger-btn:active {
+  transform: translateY(4px) !important;
+  box-shadow: 0 0px 0 rgba(0, 0, 0, 0.35) !important;
+}
+
+button:disabled {
+  filter: brightness(0.55) saturate(0.6) !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.35) !important;
+}
+
+/* Card Button Graphics (UNO Style Action Card) */
+.action-card-btn {
+  position: relative;
+  overflow: hidden;
+  background: var(--yellow) !important;
+  border: 4px solid #fff !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35) !important;
+  color: #fff !important;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+  z-index: 1;
+}
+.action-card-btn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 168%;
+  height: 60%;
+  background: var(--yellow-d);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-40deg);
+  z-index: -1;
+}
+.action-card-btn:active {
+  transform: translateY(4px) !important;
+  box-shadow: 0 0px 0 rgba(0, 0, 0, 0.35) !important;
+}
+
+/* PTT Button specifics */
+.ptt-btn {
+  position: relative;
+  overflow: hidden;
+  background: var(--green) !important;
+  border: 4px solid #fff !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35) !important;
+  color: #fff !important;
+  z-index: 1;
+  transition: var(--transition) !important;
+  height: 80px !important;
+}
+.ptt-btn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 168%;
+  height: 60%;
+  background: var(--green-d);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-40deg);
+  z-index: -1;
+  transition: var(--transition);
+}
+.ptt-btn:active, .ptt-btn.listening {
+  transform: translateY(6px) !important;
+  box-shadow: 0 0px 0 rgba(0, 0, 0, 0.35) !important;
+}
+.ptt-btn.listening {
+  background: var(--red) !important;
+}
+.ptt-btn.listening::before {
+  background: var(--red-d);
+}
+
+/* Timers and Numbers */
+.timer, #current-round, #total-rounds, #vote-timer-display {
+  font-family: 'Arial Black', Impact, sans-serif !important;
+  font-style: italic !important;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.45) !important;
+  color: var(--yellow) !important;
+  letter-spacing: 1px;
+}
+
+/* Badges (Diamond Shape) */
+.host-badge, .player-badge {
+  background: var(--blue) !important;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  transform: rotate(45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+  padding: 0 !important;
+  color: transparent; /* Hide original text easily */
+  position: relative;
+}
+.host-badge::after {
+  content: "👑";
+  position: absolute;
+  transform: rotate(-45deg);
+  font-size: 16px;
+  color: #fff;
+}
+.player-badge::after {
+  content: "👤";
+  position: absolute;
+  transform: rotate(-45deg);
+  font-size: 16px;
+}
+
+/* Highlight State (Active Turn) */
+.players-list li.current-turn, .players-status-list li.current-turn {
+  border: 3px solid var(--cyan) !important;
+  box-shadow: 0 0 18px var(--cyan-glow), inset 0 0 10px var(--cyan-glow) !important;
+  background: rgba(53, 198, 255, 0.15) !important;
+  transform: scale(1.02);
+  transition: var(--transition);
+}
+
+/* Challenge Button */
+.challenge-btn-big {
+  background: linear-gradient(to bottom, var(--red), var(--red-d)) !important;
+  border: 3px solid #fff !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.4) !important;
+  text-transform: uppercase;
+  font-family: 'Arial Black', Impact, sans-serif !important;
+  font-style: italic;
+  font-size: 24px !important;
+}
+.challenge-btn-big:active {
+  transform: translateY(6px) !important;
+  box-shadow: 0 0px 0 rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Layout & Table Oval */
+.game-sidebar {
+    display: none !important;
+}
+.game-content {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+
+.main-play-area {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none; /* Let clicks pass to the buttons that we absolute position */
+}
+.main-play-area > * {
+    pointer-events: auto; /* Re-enable clicks for children */
+}
+
+/* Top Bar: Round (Top-Left) and Timer (Top-Right) */
+.game-top-bar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    z-index: 100;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.round-info {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #fff;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+}
+
+.timer-container .timer {
+    font-size: 3rem;
+    margin: 0;
+    padding: 0;
+}
+
+/* Turn Display (Bottom Center of the Table) */
+.turn-info {
+    position: absolute;
+    bottom: 22vh; /* Inside the table */
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--yellow) !important;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+}
+.turn-info .accent-text {
+    color: #fff !important;
+}
+
+/* Move PTT Button to Bottom-Right */
+.ptt-area {
+    position: absolute !important;
+    bottom: 40px;
+    right: 40px;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Move Challenge Button to Bottom-Left so it doesn't overlap PTT */
+.challenge-overlay {
+    position: absolute !important;
+    bottom: 40px;
+    left: 40px;
+    width: auto !important;
+    height: auto !important;
+    background: transparent !important;
+    z-index: 101;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.challenge-content {
+    background: rgba(0,0,0,0.8);
+    border: 3px solid var(--red);
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+    transform: scale(0.85); /* Make it slightly smaller */
+    transform-origin: bottom left;
+}
+
+/* Death Overlay */
+.death-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(150, 0, 0, 0.7);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    animation: fadeIn 0.3s;
+}
+.death-content {
+    background: var(--ink);
+    border: 5px solid var(--red);
+    padding: 40px;
+    border-radius: var(--radius-card);
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+    transform: scale(1.2);
+    animation: slamIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.death-title {
+    font-size: 4rem;
+    color: var(--red);
+    margin: 0;
+    font-family: 'Arial Black', Impact, sans-serif;
+    text-transform: uppercase;
+}
+.death-reason {
+    font-size: 2rem;
+    color: #fff;
+    margin-top: 10px;
+}
+
+@keyframes slamIn {
+    0% { transform: scale(3); opacity: 0; }
+    100% { transform: scale(1.2); opacity: 1; }
+}
+@keyframes fadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
+
+#latest-word {
+  transition: var(--transition) !important;
+  display: inline-block;
+}
+.latest-word-container:hover #latest-word {
+  transform: translateY(-8px) scale(1.06);
+  text-shadow: 0 12px 10px rgba(0,0,0,0.4);
+}
+/* Circular Players Layout */
+.players-circle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100vw;
+    height: 100vh;
+    transform: translate(-50%, -50%);
+    pointer-events: none; /* let clicks pass to center UI */
+    z-index: 5;
+    overflow: hidden;
+}
+.player-node {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 110px;
+    height: 120px;
+    margin-top: -60px;
+    margin-left: -55px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: var(--radius-card);
+    backdrop-filter: blur(4px);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    color: #fff;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+    box-shadow: 0 8px 16px var(--shadow);
+}
+.player-node.current-turn {
+    border-color: var(--cyan) !important;
+    box-shadow: 0 0 25px var(--cyan-glow), inset 0 0 10px var(--cyan-glow) !important;
+    background: rgba(10, 49, 96, 0.8) !important;
+    scale: 1.15 !important;
+    z-index: 20;
+}
+.player-node.eliminated {
+    opacity: 0.3;
+    filter: grayscale(1);
+    scale: 0.9 !important;
+}
+.player-avatar {
+    font-size: 32px;
+    margin-bottom: 5px;
+}
+.player-name-lbl {
+    font-size: 14px;
+    font-weight: 800;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 90%;
+    margin-bottom: 4px;
+}
+.player-score-lbl {
+    font-size: 12px;
+    color: var(--yellow);
+    font-weight: 600;
+}
+
+/* Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .ptt-area { bottom: 15px !important; right: 15px !important; transform: scale(0.75); transform-origin: bottom right; }
+  .challenge-overlay { bottom: 15px !important; left: 15px !important; transform: scale(0.75); transform-origin: bottom left; }
+  .turn-info { bottom: 20vh !important; font-size: 1.5rem !important; }
+  .game-top-bar { top: 10px !important; left: 10px !important; right: 10px !important; flex-direction: row !important; justify-content: space-between !important; padding: 10px !important; background: rgba(0,0,0,0.5) !important; border-radius: 12px !important; }
+  .round-info { font-size: 1.2rem !important; }
+  .timer-container .timer { font-size: 1.5rem !important; }
+  .player-node { width: 70px !important; height: 80px !important; margin-top: -40px !important; margin-left: -35px !important; }
+  .player-avatar { font-size: 20px !important; margin-bottom: 2px !important; }
+  .player-name-lbl { font-size: 10px !important; margin-bottom: 2px !important; }
+  .player-score-lbl { font-size: 9px !important; }
+  .latest-word-container { transform: scale(0.7); margin-top: -5vh; }
+}

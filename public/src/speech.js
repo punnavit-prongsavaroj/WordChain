@@ -3,7 +3,7 @@
 // รองรับภาษาไทยได้ดีและฟรี ไม่ต้องใช้ Backend
 
 // Backend API URL — change this after deploying to Render/Koyeb/Cloud Run
-const DEPLOYED_API_URL = "https://wordchain-backend-ikar.onrender.com/api"; 
+const DEPLOYED_API_URL = "https://wordchain-1q0g.onrender.com/api"; 
 const LOCAL_API_URL = "http://127.0.0.1:8000/api";
 // ใช้ Render.com API เสมอ ตามที่ผู้ใช้ต้องการ
 const API_BASE_URL = DEPLOYED_API_URL;

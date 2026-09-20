@@ -61,19 +61,63 @@ export function updateGameTopBar(room, playersList) {
 }
 
 export function updateGamePlayersList(room, playersList) {
+    // 1. Sidebar List (hidden by CSS but keep it updated just in case)
     const list = document.getElementById('game-players-list');
-    list.innerHTML = '';
+    if (list) {
+        list.innerHTML = '';
+        playersList.forEach(p => {
+            const li = document.createElement('li');
+            if (p.id === room.currentTurn) li.classList.add('current-turn');
+            if (p.eliminated) li.classList.add('eliminated');
+            
+            li.innerHTML = `
+                <span>${p.name} ${p.eliminated ? '💀' : ''}</span>
+                <span>Score: ${p.score || 0} | Wins: ${p.wins || 0}</span>
+            `;
+            list.appendChild(li);
+        });
+    }
     
-    playersList.forEach(p => {
-        const li = document.createElement('li');
-        if (p.id === room.currentTurn) li.classList.add('current-turn');
-        if (p.eliminated) li.classList.add('eliminated');
+    // 2. Circular Table Layout (UNO style)
+    let circle = document.getElementById('players-circle');
+    if (!circle) {
+        circle = document.createElement('div');
+        circle.id = 'players-circle';
+        circle.className = 'players-circle';
         
-        li.innerHTML = `
-            <span>${p.name} ${p.eliminated ? '💀' : ''}</span>
-            <span>Score: ${p.score || 0} | Wins: ${p.wins || 0}</span>
+        // Find a place to append it. The game-content is ideal.
+        const gameContent = document.querySelector('.game-content');
+        if (gameContent) {
+            gameContent.appendChild(circle);
+        }
+    }
+    
+    circle.innerHTML = '';
+    
+    const count = playersList.length;
+    // Calculate radius based on window size to match the new oval table (75vw x 60vh)
+    // We want the players to sit nicely around the edge of the oval.
+    const rx = window.innerWidth > 768 ? 42 : 45; // vw
+    const ry = window.innerWidth > 768 ? 35 : 40; // vh
+
+    playersList.forEach((p, index) => {
+        const node = document.createElement('div');
+        node.className = 'player-node';
+        if (p.id === room.currentTurn) node.classList.add('current-turn');
+        if (p.eliminated) node.classList.add('eliminated');
+        
+        // Angle starts at top (-PI/2) and goes clockwise
+        const angle = (index / count) * 2 * Math.PI - Math.PI / 2;
+        
+        node.style.transform = `translate(calc(${Math.cos(angle) * rx}vw), calc(${Math.sin(angle) * ry}vh))`;
+        
+        node.innerHTML = `
+            <div class="player-avatar">${p.eliminated ? '💀' : '👤'}</div>
+            <div class="player-name-lbl" title="${p.name}">${p.name}</div>
+            <div class="player-score-lbl">★ ${p.wins || 0} | 🪙 ${p.score || 0}</div>
         `;
-        list.appendChild(li);
+        
+        circle.appendChild(node);
     });
 }
 
@@ -252,6 +296,22 @@ export function showRoundTransition(round, winnerName) {
 export function hideRoundTransition() {
     const overlay = document.getElementById('round-transition');
     if (overlay) overlay.classList.add('hidden');
+}
+
+// ===== Death Screen =====
+
+export function showDeathScreen(reason) {
+    const overlay = document.getElementById('death-overlay');
+    const reasonEl = document.getElementById('death-reason');
+    if (!overlay || !reasonEl) return;
+    
+    reasonEl.innerText = reason;
+    overlay.classList.remove('hidden');
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+        overlay.classList.add('hidden');
+    }, 3000);
 }
 
 // ===== Game Over =====

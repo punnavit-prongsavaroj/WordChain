@@ -1,4 +1,4 @@
-import { auth, signInAnonymously, onAuthStateChanged } from './firebase.js';
+import { auth, signInAnonymously, onAuthStateChanged, signOut } from './firebase.js';
 
 let currentUser = null;
 
@@ -42,4 +42,15 @@ export function getCurrentUser() {
         uid: currentUser.uid,
         name: localStorage.getItem('playerName') || 'Player'
     };
+}
+
+export async function logout() {
+    try {
+        localStorage.removeItem('playerName');
+        localStorage.removeItem('lastRoomId');
+        await signOut(auth);
+    } catch (e) {
+        console.error("Logout error", e);
+        throw e;
+    }
 }

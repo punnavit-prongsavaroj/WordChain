@@ -1,4 +1,4 @@
-import { loginAnonymously, setupAuthListener, getCurrentUser } from './auth.js';
+import { loginAnonymously, setupAuthListener, getCurrentUser, logout } from './auth.js';
 import { createRoom, joinRoom, listenToRoom, listenToPlayers } from './room.js';
 import { startGame, nextTurn, eliminatePlayer, submitWord, listenToWords, startChallengeWindow, endChallengeWindow, initiateChallenge, deleteWord, undoScore } from './game.js';
 import { requestMicrophonePermission, speechToTextLive, stopRecognition, speechToText, checkWordAPI } from './speech.js';
@@ -10,7 +10,7 @@ import {
     showChallengeButton, hideChallengeButton,
     showVoteModal, hideVoteModal, updateVoteResults, updateVoteTimer,
     disableVoteButtons, enableVoteButtons, showVoteResult,
-    showRoundTransition, hideRoundTransition, showGameOver
+    showRoundTransition, hideRoundTransition, showGameOver, showDeathScreen
 } from './ui.js';
 import { db } from './firebase.js';
 import { doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -20,6 +20,7 @@ let currentRoom = null;
 let playersList = [];
 let wordsList = [];
 let isMyTurn = false;
+let amIEliminated = false;
 let isRecording = false;
 let currentTurnId = 0; // Track turn changes to prevent stale timer fires
 let challengeTimer = null;
@@ -42,15 +43,41 @@ const voteInvalidBtn = document.getElementById('vote-invalid-btn');
 
 // Initialize
 function init() {
-    setupAuthListener((user) => {
+    setupAuthListener(async (user) => {
         if (user) {
             currentUser = user;
+            const lastRoomId = localStorage.getItem('lastRoomId');
+            if (lastRoomId) {
+                try {
+                    await joinRoom(lastRoomId, currentUser);
+                    setupRoomListeners(lastRoomId);
+                    showScreen('room-screen');
+                    return; // exit early, skip lobby
+                } catch (e) {
+                    console.error("Could not rejoin room:", e);
+                    localStorage.removeItem('lastRoomId');
+                }
+            }
             showScreen('lobby-screen');
             updateLobbyUI(user);
         } else {
             showScreen('auth-screen');
         }
     });
+
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await logout();
+                currentRoom = null;
+                playersList = [];
+                // It will naturally go to auth-screen due to auth listener
+            } catch (e) {
+                alert("Error logging out: " + e.message);
+            }
+        });
+    }
 
     loginBtn.addEventListener('click', async () => {
         try {
@@ -67,6 +94,7 @@ function init() {
     createRoomBtn.addEventListener('click', async () => {
         try {
             const roomId = await createRoom(currentUser);
+            localStorage.setItem('lastRoomId', roomId);
             setupRoomListeners(roomId);
             showScreen('room-screen');
         } catch (e) {
@@ -79,6 +107,7 @@ function init() {
             const roomId = roomCodeInput.value.trim();
             if (!roomId) return alert("กรุณากรอกรหัสห้อง");
             await joinRoom(roomId, currentUser);
+            localStorage.setItem('lastRoomId', roomId);
             setupRoomListeners(roomId);
             showScreen('room-screen');
         } catch (e) {
@@ -100,21 +129,41 @@ function init() {
     });
 
     // Leave room
-    leaveRoomBtn.addEventListener('click', async () => {
+    const handleLeaveRoom = async () => {
         try {
             if (currentRoom && currentUser) {
-                await deleteDoc(doc(db, `rooms/${currentRoom.id}/players`, currentUser.uid));
+                const playerRef = doc(db, `rooms/${currentRoom.id}/players`, currentUser.uid);
+                if (currentRoom.status === "playing" || currentRoom.status === "round_transition") {
+                    await updateDoc(playerRef, {
+                        eliminated: true,
+                        deathReason: "ออกจากห้อง"
+                    });
+                    // If it was their turn, try to advance turn
+                    if (currentRoom.currentTurn === currentUser.uid) {
+                        import('./game.js').then(m => m.nextTurn(currentRoom.id, currentUser.uid, playersList));
+                    }
+                } else {
+                    await deleteDoc(playerRef);
+                }
             }
+            localStorage.removeItem('lastRoomId');
             currentRoom = null;
             playersList = [];
+            stopClientTimer();
+            clearChallengeTimers();
             showScreen('lobby-screen');
         } catch (e) {
             alert(e.message);
         }
-    });
+    };
+
+    leaveRoomBtn.addEventListener('click', handleLeaveRoom);
+    const leaveGameBtn = document.getElementById('leave-game-btn');
+    if (leaveGameBtn) leaveGameBtn.addEventListener('click', handleLeaveRoom);
 
     // Back to lobby from game over
     backToLobbyBtn.addEventListener('click', () => {
+        localStorage.removeItem('lastRoomId');
         currentRoom = null;
         playersList = [];
         wordsList = [];
@@ -299,6 +348,22 @@ function handleGameStateChange() {
     
     const wasMyTurn = isMyTurn;
     isMyTurn = currentRoom.currentTurn === currentUser.uid;
+
+    const myPlayerInfo = playersList.find(p => p.id === currentUser.uid);
+    if (myPlayerInfo && myPlayerInfo.eliminated && !amIEliminated) {
+        amIEliminated = true;
+        isRecording = false;
+        stopRecognition();
+        document.getElementById('ptt-area').classList.add('hidden');
+        setVoiceIndicator('idle', '💀 คุณถูกคัดออกแล้ว!');
+        
+        // SHOW DEATH SCREEN with reason
+        showDeathScreen(myPlayerInfo.deathReason || "คัดออก!");
+    } else if (myPlayerInfo && !myPlayerInfo.eliminated && amIEliminated) {
+        amIEliminated = false;
+        setVoiceIndicator('idle', 'รอถึงตาของคุณ...');
+    }
+
     currentTurnId++;
     const myTurnId = currentTurnId;
     
@@ -344,7 +409,6 @@ function handleGameStateChange() {
 function handleChallengeState(prevPhase) {
     const phase = currentRoom.challengePhase;
     const myPlayerInfo = playersList.find(p => p.id === currentUser.uid);
-    const amIEliminated = myPlayerInfo?.eliminated;
     
     if (phase === "voting" && prevPhase !== "voting") {
         // Vote phase started
@@ -430,23 +494,24 @@ async function handleVoteResolution(votes, activePlayers) {
         
         if (result.result === "speaker_eliminated") {
             // Speaker loses — eliminate speaker, delete word, undo score
-            await eliminatePlayer(roomId, speakerId);
+            await eliminatePlayer(roomId, speakerId, "ใช้คำผิด / ไม่มีคำนี้");
             await deleteWord(roomId, wordId);
             await undoScore(roomId, speakerId);
             // Go to the player after the speaker (which is actually turnId, unless turnId was eliminated)
             await nextTurn(roomId, speakerId, playersList, true);
         } else {
             // Challenger loses — eliminate challenger
-            await eliminatePlayer(roomId, challengerId);
+            await eliminatePlayer(roomId, challengerId, "Challenge มั่ว!");
             
             // Resume the interrupted turn (turnId) with a fresh timer
-            const { doc, updateDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+            const oldTurnId = currentRoom.currentTurn;
             await updateDoc(doc(db, "rooms", roomId), {
-                timerEnd: new Date(Date.now() + 5000), // Give them a fresh 5 seconds
                 challengePhase: null,
                 challengerId: null,
-                challengeEndTime: null
+                challengeEndTime: null,
+                timerEnd: new Date(Date.now() + 5000)
             });
+            return; // We don't advance turn, the interrupted person keeps playing
         }
     }, 2500);
 }
@@ -490,22 +555,36 @@ async function startMyTurn(turnId) {
 
     pttArea.classList.remove('hidden');
     pttBtn.classList.remove('listening');
-    pttLabel.textContent = 'กดเพื่อพูด';
+    pttLabel.textContent = 'กดค้างเพื่อพูด';
 
-    pttBtn.onclick = async () => {
+    let pttAborted = false;
+
+    const onStart = async (e) => {
+        if (e) e.preventDefault();
         if (isRecording) return;
         if (turnId !== currentTurnId) return; // Stale turn
+        
         isRecording = true;
+        pttAborted = false;
 
         pttBtn.classList.add('listening');
         pttLabel.textContent = 'กำลังฟัง...';
-        setVoiceIndicator('listening', '🔴 กำลังฟัง...');
+        setVoiceIndicator('listening', '🔴 กำลังฟัง... (ปล่อยเพื่อส่งคำ)');
 
         try {
-            const text = await speechToTextLive(3500);
+            // ฟังแบบยาวๆ ระหว่างที่กดค้างอยู่ (timeout 15 วิ หรือจนกว่าจะปล่อยมือ)
+            const text = await speechToTextLive(15000);
+            
+            if (pttAborted) return; // ถ้า turn เปลี่ยนไปแล้วตอนปล่อย
+
             isRecording = false;
             pttArea.classList.add('hidden');
-            pttBtn.onclick = null;
+            
+            // Remove listeners
+            pttBtn.onmousedown = null;
+            pttBtn.ontouchstart = null;
+            window.onmouseup = null;
+            window.ontouchend = null;
 
             if (turnId !== currentTurnId) return; // Turn changed while recording
 
@@ -521,14 +600,34 @@ async function startMyTurn(turnId) {
             await processVoice(text);
 
         } catch (e) {
+            if (pttAborted) return;
             isRecording = false;
             pttArea.classList.add('hidden');
-            pttBtn.onclick = null;
+            
+            pttBtn.onmousedown = null;
+            pttBtn.ontouchstart = null;
+            window.onmouseup = null;
+            window.ontouchend = null;
+
             console.error("Mic error", e);
             setVoiceIndicator('idle', '❌ ' + e.message);
             failTurn(e.message);
         }
     };
+
+    const onStop = (e) => {
+        if (e) e.preventDefault();
+        if (!isRecording) return;
+        pttAborted = false;
+        stopRecognition(); // จะทำให้ speechToTextLive จบแล้วได้ text ที่พูดไป
+    };
+
+    pttBtn.onmousedown = onStart;
+    pttBtn.ontouchstart = onStart;
+    
+    // Bind to window so if they drag outside the button it still stops
+    window.onmouseup = onStop;
+    window.ontouchend = onStop;
 }
 
 async function handleTimeUp() {
@@ -536,6 +635,10 @@ async function handleTimeUp() {
         stopRecognition();
         isRecording = false;
     }
+    // Clean up listeners
+    window.onmouseup = null;
+    window.ontouchend = null;
+    
     document.getElementById('ptt-area').classList.add('hidden');
     setVoiceIndicator('idle', '⏰ หมดเวลา!');
     failTurn("หมดเวลา");
@@ -579,16 +682,28 @@ async function processVoice(text) {
 async function forceFailTurn(playerId) {
     if (currentRoom.hostId !== currentUser.uid) return;
     try {
-        await eliminatePlayer(currentRoom.id, playerId);
+        await eliminatePlayer(currentRoom.id, playerId, "หลุดจากเกม / หมดเวลา");
         await nextTurn(currentRoom.id, playerId, playersList);
     } catch (e) {
         console.error("Host force fail error:", e);
     }
 }
 
+// Host can force eliminate someone who is stuck
+window.forceEliminate = async function(playerId) {
+    if (!currentRoom || !currentUser) return;
+    if (currentRoom.hostId !== currentUser.uid) return;
+    try {
+        await eliminatePlayer(currentRoom.id, playerId, "ถูกโฮสต์เตะ");
+        await nextTurn(currentRoom.id, playerId, playersList);
+    } catch (e) {
+        console.error(e);
+    }
+};
+
 async function failTurn(reason) {
     stopClientTimer();
-    await eliminatePlayer(currentRoom.id, currentUser.uid);
+    await eliminatePlayer(currentRoom.id, currentUser.uid, reason);
     await nextTurn(currentRoom.id, currentUser.uid, playersList);
 }
 
