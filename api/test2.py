@@ -1,0 +1,1 @@
+﻿from pythainlp.tag import pos_tag; from pythainlp.tokenize import word_tokenize, syllable_tokenize; text = "ตื่น"; words = word_tokenize(text, engine="newmm"); print("pos_tag:", pos_tag(words, corpus="orchid")); print("syllables:", syllable_tokenize(text))

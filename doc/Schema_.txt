@@ -1,0 +1,59 @@
+src/
+├── app/
+│   ├── router.tsx
+│   └── providers.tsx
+├── pages/
+│   ├── HomePage.tsx
+│   └── RoomPage.tsx
+├── features/
+│   ├── auth/
+│   │   └── useAnonymousAuth.ts
+│   ├── room/
+│   │   ├── LobbyView.tsx
+│   │   ├── useRoomSnapshot.ts
+│   │   ├── usePlayersSnapshot.ts
+│   │   └── roomActions.ts
+│   ├── game/
+│   │   ├── GameView.tsx
+│   │   ├── components/
+│   │   │   ├── TurnBanner.tsx
+│   │   │   ├── Countdown.tsx
+│   │   │   ├── WordHistory.tsx
+│   │   │   └── PushToTalkButton.tsx
+│   │   ├── engine/
+│   │   │   ├── useHostEngine.ts
+│   │   │   ├── turnEngine.ts
+│   │   │   └── challengeEngine.ts
+│   │   └── domain/
+│   │       ├── permissions.ts
+│   │       ├── nextPlayer.ts
+│   │       └── tallyVotes.ts
+│   ├── challenge/
+│   │   ├── ChallengeView.tsx
+│   │   └── challengeActions.ts
+│   ├── speech/
+│   │   ├── speechAdapter.ts
+│   │   ├── usePushToTalk.ts
+│   │   └── MicTest.tsx
+│   ├── media/
+│   │   ├── peerService.ts
+│   │   ├── useLocalMedia.ts
+│   │   ├── usePeerConnections.ts
+│   │   └── VideoGrid.tsx
+│   ├── reconnect/
+│   │   └── useRoomRecovery.ts
+│   └── results/
+│       └── FinishedView.tsx
+├── components/
+│   └── ui/
+├── services/
+│   ├── firebase.ts
+│   ├── validationApi.ts
+│   └── roomRepository.ts
+├── stores/
+│   └── localUiStore.ts
+├── types/
+│   ├── room.ts
+│   ├── player.ts
+│   └── api.ts
+└── tests/
