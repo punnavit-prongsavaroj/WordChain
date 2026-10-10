@@ -3,7 +3,7 @@ import { createRoom, joinRoomByCode, subscribeToRoom } from '../services/roomSer
 import { useGameStore } from '../store/gameStore';
 import { checkWordWithAPI } from '../services/apiClient';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
-import { Mic, Video, Copy, LogOut } from 'lucide-react';
+import { Mic, Video } from 'lucide-react';
 
 export default function Home() {
   const [code, setCode] = useState('');

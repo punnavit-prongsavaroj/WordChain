@@ -1,6 +1,6 @@
 import { useGameStore } from '../store/gameStore';
 import { leaveRoom } from '../services/roomService';
-import { doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { doc, writeBatch } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { Copy, Users, User, LogOut, CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';

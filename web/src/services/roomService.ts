@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, getDocs, query, where, onSnapshot, updateDoc, serverTimestamp, arrayUnion, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, query, where, onSnapshot, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { useGameStore, type Player } from '../store/gameStore';
 

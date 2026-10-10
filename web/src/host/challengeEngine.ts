@@ -79,7 +79,6 @@ export function useChallengeEngine() {
         setTimeout(async () => {
            let nextTurnUid = challenge.speakerUid;
            let nextTurnTime = Date.now() + 15000;
-           let updatedUsedSyllables = [...usedSyllables];
            let updatedWords = [...words];
 
            if (outcome === 'fail') {
@@ -89,7 +88,7 @@ export function useChallengeEngine() {
                });
                
                // Revert word and syllables
-               const lastWord = updatedWords.pop();
+               updatedWords.pop();
                
                // Turn goes to challenger or next alive
                nextTurnUid = challenge.challengerUid;
