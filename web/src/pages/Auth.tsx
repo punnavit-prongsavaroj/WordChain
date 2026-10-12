@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { 
   signInWithPopup, 
+  signInWithRedirect,
   GoogleAuthProvider, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
@@ -61,6 +62,15 @@ export default function Auth() {
       console.error('Google Sign In Error:', err);
       if (err.code === 'auth/popup-closed-by-user') {
         // User closed the popup, do nothing
+      } else if (err.code === 'auth/popup-blocked') {
+        // Try fallback to redirect login
+        try {
+          const provider = new GoogleAuthProvider();
+          await signInWithRedirect(auth, provider);
+          return;
+        } catch {
+          setError('เบราว์เซอร์บล็อกหน้าต่าง Pop-up: กรุณากดที่ไอคอนรูปหน้าต่างกากบาทสีแดงบนแถบ URL (ด้านขวาบน) แล้วเลือก "อนุญาต Pop-up เสมอ" เพื่อเข้าสู่ระบบ');
+        }
       } else if (err.code === 'auth/operation-not-allowed') {
         setError('กรุณาเปิดใช้งาน Google Sign-In ใน Firebase Console (Authentication > Sign-in method > Google)');
       } else if (err.code === 'auth/unauthorized-domain') {
