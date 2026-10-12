@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, increment, getDocs, collection } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { db, auth } from './firebase';
 import { useGameStore, type Player } from '../store/gameStore';
@@ -113,5 +113,38 @@ export const recordGameFinished = async (
     }
   } catch (err) {
     console.error('Error recording game finished stats:', err);
+  }
+};
+
+export const getGlobalLeaderboard = async (limitCount = 20): Promise<UserProfile[]> => {
+  try {
+    const snapshot = await getDocs(collection(db, 'users'));
+    const users: UserProfile[] = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      users.push({
+        uid: docSnap.id,
+        name: data.name || 'ผู้เล่น',
+        email: data.email || '',
+        photoURL: data.photoURL || '',
+        wins: data.wins || 0,
+        gamesPlayed: data.gamesPlayed || 0
+      });
+    });
+
+    // Sort by wins desc, then winRate desc
+    users.sort((a, b) => {
+      const winsA = a.wins || 0;
+      const winsB = b.wins || 0;
+      if (winsB !== winsA) return winsB - winsA;
+      const rateA = a.gamesPlayed ? winsA / a.gamesPlayed : 0;
+      const rateB = b.gamesPlayed ? winsB / b.gamesPlayed : 0;
+      return rateB - rateA;
+    });
+
+    return users.slice(0, limitCount);
+  } catch (error) {
+    console.error('Error fetching global leaderboard:', error);
+    return [];
   }
 };

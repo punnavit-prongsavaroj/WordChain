@@ -1,16 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createRoom, joinRoomByCode, subscribeToRoom } from '../services/roomService';
 import { useGameStore } from '../store/gameStore';
 import { checkWordWithAPI } from '../services/apiClient';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import { getGlobalLeaderboard, type UserProfile } from '../services/userService';
 import ProfileModal from '../components/ProfileModal';
-import { Mic, User, Edit3, Sparkles } from 'lucide-react';
+import { Mic, User, Edit3, Sparkles, Trophy, RotateCcw } from 'lucide-react';
 
 export default function Home() {
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  
+  // Leaderboard State
+  const [leaderboard, setLeaderboard] = useState<UserProfile[]>([]);
+  const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   
   // Test Feature State
   const [isTesting, setIsTesting] = useState(false);
@@ -23,6 +28,22 @@ export default function Home() {
   const myEmail = useGameStore(state => state.myEmail);
   const myWins = useGameStore(state => state.myWins);
   const myGamesPlayed = useGameStore(state => state.myGamesPlayed);
+
+  const loadLeaderboard = async () => {
+    setIsLeaderboardLoading(true);
+    try {
+      const data = await getGlobalLeaderboard(15);
+      setLeaderboard(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLeaderboardLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLeaderboard();
+  }, []);
 
   const { interimText, error: speechError } = useSpeechRecognition({
     active: isTesting,
@@ -167,6 +188,103 @@ export default function Home() {
                   เข้าร่วม
                 </button>
               </div>
+            </div>
+
+            {/* Global Leaderboard Card */}
+            <div className="bg-elevated rounded-[24px] shadow-lg border border-border p-6 flex flex-col mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="bg-warning/20 p-2.5 rounded-2xl text-warning">
+                    <Trophy className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-main text-lg flex items-center gap-2">
+                      อันดับรวมทั้งหมด (Global Scoreboard)
+                    </h3>
+                    <p className="text-xs text-muted font-medium">รวมคะแนนชนะและสถิติของผู้เล่นทุกคน</p>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={loadLeaderboard}
+                  disabled={isLeaderboardLoading}
+                  className="p-2 text-muted hover:text-main rounded-xl hover:bg-surface border border-transparent hover:border-border transition-colors disabled:opacity-50"
+                  title="รีเฟรชอันดับ"
+                >
+                  <RotateCcw className={`w-4 h-4 ${isLeaderboardLoading ? 'animate-spin text-primary' : ''}`} />
+                </button>
+              </div>
+
+              {isLeaderboardLoading && leaderboard.length === 0 ? (
+                <div className="py-8 text-center text-muted font-bold text-sm animate-pulse">
+                  กำลังโหลดอันดับผู้เล่น...
+                </div>
+              ) : leaderboard.length === 0 ? (
+                <div className="py-8 text-center text-muted font-bold text-sm bg-surface rounded-2xl border border-border">
+                  ยังไม่มีสถิติการแข่งขัน เล่นเกมให้จบเพื่อขึ้นกระดานอันดับ!
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                  {leaderboard.map((u, idx) => {
+                    const isMe = u.uid === myUid;
+                    const winRate = u.gamesPlayed ? Math.round(((u.wins || 0) / u.gamesPlayed) * 100) : 0;
+                    
+                    return (
+                      <div
+                        key={u.uid}
+                        className={`p-3 rounded-[16px] border transition-all flex items-center gap-3 ${
+                          isMe 
+                            ? 'bg-primary/10 border-primary/40 ring-1 ring-primary/30' 
+                            : (idx === 0 
+                                ? 'bg-warning/10 border-warning/30' 
+                                : 'bg-surface border-border hover:bg-surface/80')
+                        }`}
+                      >
+                        {/* Rank Badge */}
+                        <div className="w-7 text-center font-black text-base flex-shrink-0">
+                          {idx === 0 && <span className="text-xl" title="อันดับ 1">🥇</span>}
+                          {idx === 1 && <span className="text-xl" title="อันดับ 2">🥈</span>}
+                          {idx === 2 && <span className="text-xl" title="อันดับ 3">🥉</span>}
+                          {idx > 2 && <span className="text-muted text-xs">#{idx + 1}</span>}
+                        </div>
+
+                        {/* Avatar */}
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/20 flex items-center justify-center border border-border flex-shrink-0">
+                          {u.photoURL ? (
+                            <img src={u.photoURL} alt={u.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="font-black text-primary text-sm">
+                              {u.name.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Name & Stats */}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-main text-sm truncate flex items-center gap-1.5">
+                            {u.name}
+                            {isMe && <span className="text-primary text-[10px] font-bold px-1.5 py-0.5 bg-primary/20 rounded-md">(คุณ)</span>}
+                          </div>
+                          <div className="text-[11px] text-muted flex items-center gap-1.5 mt-0.5">
+                            <span>{u.gamesPlayed || 0} เกม</span>
+                            <span>•</span>
+                            <span className="text-primary font-bold">{winRate}% Win Rate</span>
+                          </div>
+                        </div>
+
+                        {/* Wins Count */}
+                        <div className="text-right flex-shrink-0">
+                          <div className="text-sm font-black text-warning flex items-center justify-end gap-1">
+                            <Trophy className="w-3.5 h-3.5" />
+                            {u.wins || 0}
+                          </div>
+                          <div className="text-[10px] text-muted font-medium">ชนะ</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
          </div>
 
