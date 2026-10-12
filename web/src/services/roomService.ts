@@ -1,6 +1,7 @@
 import { collection, doc, setDoc, getDocs, query, where, onSnapshot, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { useGameStore, type Player } from '../store/gameStore';
+import { getUserProfile } from './userService';
 
 const ROOMS_COLLECTION = 'rooms';
 
@@ -11,21 +12,27 @@ export const createRoom = async (hostUid: string, hostName: string, photoURL?: s
   const roomRef = doc(collection(db, ROOMS_COLLECTION));
   const roomId = roomRef.id;
 
+  const userProfile = await getUserProfile(hostUid);
+
   await setDoc(roomRef, {
     code,
     hostUid,
     status: 'lobby',
     createdAt: serverTimestamp(),
     usedSyllables: [],
+    hasRecordedStats: false
   });
 
   // Add host as first player
   await setDoc(doc(db, `${ROOMS_COLLECTION}/${roomId}/players`, hostUid), {
     name: hostName,
-    photoURL: photoURL || null,
+    photoURL: photoURL || userProfile?.photoURL || null,
     alive: true,
     joinedAt: Date.now(),
-    order: 0
+    order: 0,
+    wins: userProfile?.wins || 0,
+    gamesPlayed: userProfile?.gamesPlayed || 0,
+    score: 0
   });
 
   localStorage.setItem('wordChainRoomId', roomId);
@@ -52,13 +59,18 @@ export const joinRoomByCode = async (code: string, uid: string, name: string, ph
   const playersSnapshot = await getDocs(collection(db, `${ROOMS_COLLECTION}/${roomId}/players`));
   const order = playersSnapshot.size;
 
+  const userProfile = await getUserProfile(uid);
+
   await setDoc(doc(db, `${ROOMS_COLLECTION}/${roomId}/players`, uid), {
     name,
-    photoURL: photoURL || null,
+    photoURL: photoURL || userProfile?.photoURL || null,
     alive: !isSpectator,
     isSpectator,
     joinedAt: Date.now(),
-    order
+    order,
+    wins: userProfile?.wins || 0,
+    gamesPlayed: userProfile?.gamesPlayed || 0,
+    score: 0
   });
 
   localStorage.setItem('wordChainRoomId', roomId);
@@ -95,7 +107,14 @@ export const subscribeToRoom = (roomId: string) => {
   unsubscribePlayers = onSnapshot(collection(db, `${ROOMS_COLLECTION}/${roomId}/players`), (snapshot) => {
     const players: Record<string, Player> = {};
     snapshot.forEach((doc) => {
-      players[doc.id] = { uid: doc.id, ...doc.data() } as Player;
+      const data = doc.data();
+      players[doc.id] = { 
+        uid: doc.id, 
+        wins: data.wins || 0,
+        gamesPlayed: data.gamesPlayed || 0,
+        score: data.score || 0,
+        ...data 
+      } as Player;
     });
     useGameStore.getState().setRoomData({ players });
   });

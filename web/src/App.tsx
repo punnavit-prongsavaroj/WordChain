@@ -18,6 +18,7 @@ function App() {
   const setMyName = useGameStore(state => state.setMyName);
   const setMyPhotoURL = useGameStore(state => state.setMyPhotoURL);
   const setMyEmail = useGameStore(state => state.setMyEmail);
+  const setMyStats = useGameStore(state => state.setMyStats);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -30,6 +31,7 @@ function App() {
         const profile = await getUserProfile(user.uid);
         if (profile) {
           setMyName(profile.name || user.displayName || 'ผู้เล่น');
+          setMyStats(profile.wins || 0, profile.gamesPlayed || 0);
           if (profile.photoURL) {
             setMyPhotoURL(profile.photoURL);
           } else if (user.photoURL) {
@@ -37,6 +39,7 @@ function App() {
           }
         } else {
           setMyName(user.displayName || 'ผู้เล่น');
+          setMyStats(0, 0);
           if (user.photoURL) setMyPhotoURL(user.photoURL);
         }
       } else {
@@ -50,7 +53,7 @@ function App() {
     });
 
     return () => unsubscribe();
-  }, [setMyUid, setMyName, setMyPhotoURL, setMyEmail]);
+  }, [setMyUid, setMyName, setMyPhotoURL, setMyEmail, setMyStats]);
 
   useEffect(() => {
     if (roomId && isAuthReady && currentUser) {

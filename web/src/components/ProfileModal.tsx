@@ -30,6 +30,8 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const myName = useGameStore(state => state.myName);
   const myPhotoURL = useGameStore(state => state.myPhotoURL);
   const myEmail = useGameStore(state => state.myEmail);
+  const myWins = useGameStore(state => state.myWins);
+  const myGamesPlayed = useGameStore(state => state.myGamesPlayed);
   const resetStore = useGameStore(state => state.reset);
 
   const [name, setName] = useState(myName || '');
@@ -172,6 +174,24 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               )}
               <div className="text-xs text-primary font-bold pt-1">
                 {selectedPhoto.startsWith('data:') ? 'รูปที่คุณอัปโหลดเอง' : 'อวตารของระบบ'}
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Badges */}
+          <div className="grid grid-cols-3 gap-3 bg-surface p-4 rounded-[20px] border border-border text-center">
+            <div className="bg-background/50 p-2.5 rounded-[14px] border border-border/50">
+              <div className="text-xs text-muted font-bold mb-1">🏆 ชนะ</div>
+              <div className="text-lg font-black text-warning">{myWins} ครั้ง</div>
+            </div>
+            <div className="bg-background/50 p-2.5 rounded-[14px] border border-border/50">
+              <div className="text-xs text-muted font-bold mb-1">🎮 ทั้งหมด</div>
+              <div className="text-lg font-black text-main">{myGamesPlayed} เกม</div>
+            </div>
+            <div className="bg-background/50 p-2.5 rounded-[14px] border border-border/50">
+              <div className="text-xs text-muted font-bold mb-1">📊 Win Rate</div>
+              <div className="text-lg font-black text-primary">
+                {myGamesPlayed ? Math.round((myWins / myGamesPlayed) * 100) : 0}%
               </div>
             </div>
           </div>

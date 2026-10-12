@@ -21,6 +21,8 @@ export default function Home() {
   const myName = useGameStore(state => state.myName);
   const myPhotoURL = useGameStore(state => state.myPhotoURL);
   const myEmail = useGameStore(state => state.myEmail);
+  const myWins = useGameStore(state => state.myWins);
+  const myGamesPlayed = useGameStore(state => state.myGamesPlayed);
 
   const { interimText, error: speechError } = useSpeechRecognition({
     active: isTesting,
@@ -201,7 +203,25 @@ export default function Home() {
                   </p>
                 )}
 
-                <div className="pt-2">
+                {/* Stats Row */}
+                <div className="grid grid-cols-3 gap-2 py-2 max-w-xs mx-auto sm:mx-0">
+                  <div className="bg-surface/80 border border-border p-2 rounded-xl text-center">
+                    <div className="text-[10px] text-muted font-bold">🏆 ชนะ</div>
+                    <div className="text-sm font-black text-warning">{myWins}</div>
+                  </div>
+                  <div className="bg-surface/80 border border-border p-2 rounded-xl text-center">
+                    <div className="text-[10px] text-muted font-bold">🎮 ทั้งหมด</div>
+                    <div className="text-sm font-black text-main">{myGamesPlayed}</div>
+                  </div>
+                  <div className="bg-surface/80 border border-border p-2 rounded-xl text-center">
+                    <div className="text-[10px] text-muted font-bold">📊 Win Rate</div>
+                    <div className="text-sm font-black text-primary">
+                      {myGamesPlayed ? Math.round((myWins / myGamesPlayed) * 100) : 0}%
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-1">
                   <button
                     onClick={() => setIsProfileOpen(true)}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-surface hover:bg-primary/10 border border-primary/20 px-3.5 py-2 rounded-xl transition-colors"

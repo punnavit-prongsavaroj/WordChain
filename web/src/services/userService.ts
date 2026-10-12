@@ -1,13 +1,15 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { db, auth } from './firebase';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore, type Player } from '../store/gameStore';
 
 export interface UserProfile {
   uid: string;
   name: string;
   email?: string;
   photoURL?: string;
+  wins?: number;
+  gamesPlayed?: number;
 }
 
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
@@ -55,5 +57,61 @@ export const updateCurrentProfile = async (name: string, photoURL?: string) => {
   useGameStore.getState().setMyName(name);
   if (photoURL) {
     useGameStore.getState().setMyPhotoURL(photoURL);
+  }
+};
+
+export const recordGameFinished = async (
+  roomId: string,
+  players: Record<string, Player>,
+  winnerUid?: string
+) => {
+  try {
+    const roomRef = doc(db, 'rooms', roomId);
+    const roomSnap = await getDoc(roomRef);
+    if (!roomSnap.exists()) return;
+
+    if (roomSnap.data()?.hasRecordedStats) {
+      return;
+    }
+
+    await updateDoc(roomRef, { hasRecordedStats: true });
+
+    const playerList = Object.values(players).filter(p => !p.isSpectator);
+    for (const player of playerList) {
+      const isWinner = player.uid === winnerUid;
+      const userRef = doc(db, 'users', player.uid);
+
+      await updateDoc(userRef, {
+        gamesPlayed: increment(1),
+        ...(isWinner ? { wins: increment(1) } : {})
+      }).catch(async (e: any) => {
+        if (e.code === 'not-found') {
+          await setDoc(userRef, {
+            uid: player.uid,
+            name: player.name,
+            gamesPlayed: 1,
+            wins: isWinner ? 1 : 0
+          }, { merge: true });
+        }
+      });
+
+      const roomPlayerRef = doc(db, `rooms/${roomId}/players`, player.uid);
+      await updateDoc(roomPlayerRef, {
+        gamesPlayed: (player.gamesPlayed || 0) + 1,
+        ...(isWinner ? { wins: (player.wins || 0) + 1 } : {})
+      }).catch(() => {});
+    }
+
+    const myUid = useGameStore.getState().myUid;
+    if (myUid && players[myUid] && !players[myUid].isSpectator) {
+      const curWins = useGameStore.getState().myWins;
+      const curGames = useGameStore.getState().myGamesPlayed;
+      useGameStore.getState().setMyStats(
+        curWins + (myUid === winnerUid ? 1 : 0),
+        curGames + 1
+      );
+    }
+  } catch (err) {
+    console.error('Error recording game finished stats:', err);
   }
 };

@@ -11,6 +11,9 @@ export interface Player {
   order: number;
   isSpectator?: boolean;
   peerId?: string;
+  wins?: number;
+  gamesPlayed?: number;
+  score?: number;
 }
 
 export interface GameState {
@@ -27,6 +30,8 @@ export interface GameState {
   myName: string | null;
   myPhotoURL: string | null;
   myEmail: string | null;
+  myWins: number;
+  myGamesPlayed: number;
   challenge: any | null; // challenge object
   
   // Actions
@@ -35,6 +40,7 @@ export interface GameState {
   setMyName: (name: string | null) => void;
   setMyPhotoURL: (photoURL: string | null) => void;
   setMyEmail: (email: string | null) => void;
+  setMyStats: (wins: number, gamesPlayed: number) => void;
   reset: () => void;
 }
 
@@ -52,6 +58,8 @@ export const useGameStore = create<GameState>((set) => ({
   myName: localStorage.getItem('wordChainName'),
   myPhotoURL: localStorage.getItem('wordChainPhotoURL'),
   myEmail: null,
+  myWins: 0,
+  myGamesPlayed: 0,
   challenge: null,
 
   setRoomData: (data) => set((state) => ({ ...state, ...data })),
@@ -67,6 +75,7 @@ export const useGameStore = create<GameState>((set) => ({
     set({ myPhotoURL: photoURL });
   },
   setMyEmail: (email) => set({ myEmail: email }),
+  setMyStats: (wins, gamesPlayed) => set({ myWins: wins, myGamesPlayed: gamesPlayed }),
   reset: () => set({
     roomId: null, code: null, hostUid: null, status: 'lobby',
     players: {}, usedSyllables: [], words: [], turnUid: null, turnEndTime: null, challenge: null

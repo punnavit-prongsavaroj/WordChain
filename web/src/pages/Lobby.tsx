@@ -26,7 +26,8 @@ export default function Lobby() {
       const playerRef = doc(db, 'rooms', roomId, 'players', p.uid);
       batch.update(playerRef, {
         alive: true,
-        isSpectator: false
+        isSpectator: false,
+        score: 0
       });
     });
 
@@ -37,7 +38,8 @@ export default function Lobby() {
       turnEndTime: Date.now() + 15000,
       words: [],
       usedSyllables: [],
-      challenge: null
+      challenge: null,
+      hasRecordedStats: false
     });
 
     await batch.commit();
@@ -100,9 +102,20 @@ export default function Lobby() {
                         </span>
                       )}
                     </div>
-                    <span className="font-bold text-main text-lg flex-1 truncate">
-                      {p.name} {p.uid === myUid && <span className="text-muted text-sm ml-2 font-normal">(คุณ)</span>}
-                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-main text-lg truncate flex items-center gap-2">
+                        {p.name} {p.uid === myUid && <span className="text-muted text-sm font-normal">(คุณ)</span>}
+                      </div>
+                      <div className="text-xs text-muted font-medium flex items-center gap-2 mt-0.5">
+                        <span className="text-warning font-bold">🏆 {p.wins || 0} ชนะ</span>
+                        <span>•</span>
+                        <span>{p.gamesPlayed || 0} เกม</span>
+                        <span>•</span>
+                        <span className="text-primary font-bold">
+                          {p.gamesPlayed ? Math.round(((p.wins || 0) / p.gamesPlayed) * 100) : 0}% Win Rate
+                        </span>
+                      </div>
+                    </div>
                     {p.uid === hostUid && (
                       <span className="text-xs bg-warning/20 text-warning px-3 py-1.5 rounded-full font-bold uppercase tracking-wider">
                         HOST

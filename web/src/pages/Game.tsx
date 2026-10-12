@@ -5,8 +5,11 @@ import { useHostLoop } from '../host/turnEngine';
 import { useChallengeEngine } from '../host/challengeEngine';
 import { checkWordWithAPI } from '../services/apiClient';
 import { leaveRoom } from '../services/roomService';
+import { recordGameFinished } from '../services/userService';
+import ScoreboardModal from '../components/ScoreboardModal';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { Trophy } from 'lucide-react';
 
 export default function Game() {
   const roomId = useGameStore(state => state.roomId);
@@ -24,9 +27,18 @@ export default function Game() {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [feedback, setFeedback] = useState<string>('');
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [isScoreboardOpen, setIsScoreboardOpen] = useState<boolean>(false);
   
   // Enable speech only if it's my turn
   const isMyTurn = myUid === turnUid;
+
+  // Auto record match stats when game finishes
+  useEffect(() => {
+    if (status === 'finished' && roomId && isHost) {
+      const winner = Object.values(players).find(p => p.alive && !p.isSpectator);
+      recordGameFinished(roomId, players, winner?.uid);
+    }
+  }, [status, roomId, isHost, players]);
 
   // Run Host Logic (will do nothing if not host)
   useHostLoop();
@@ -100,6 +112,11 @@ export default function Game() {
       turnUid: nextPlayerUid,
       turnEndTime: Date.now() + 15000,
     });
+
+    // Increment player match score
+    await updateDoc(doc(db, `rooms/${roomId}/players`, turnUid), {
+      score: (players[turnUid]?.score || 0) + 1
+    }).catch(() => {});
   };
 
   const handleChallenge = async () => {
@@ -173,15 +190,44 @@ export default function Game() {
      if (status === 'finished') {
        const winner = Object.values(players).find(p => p.alive && !p.isSpectator);
        return (
-         <div className="absolute inset-0 bg-background/90 backdrop-blur-sm z-40 flex flex-col items-center justify-center p-6 text-center text-main">
-           <h2 className="text-3xl font-bold mb-6 text-primary">คนสุดท้ายที่ยังต่อคำได้!</h2>
-           <div className="text-6xl text-success font-black mb-8 drop-shadow-lg">{winner?.name || 'ไม่มีผู้ชนะ'}</div>
-           <p className="mb-8 text-xl font-medium text-muted">ต่อคำศัพท์ไปทั้งหมด {words.length} คำ</p>
-           {isHost && (
-             <button onClick={() => updateDoc(doc(db, 'rooms', roomId!), { status: 'lobby' })} className="bg-primary hover:bg-primary/90 text-white px-8 py-4 rounded-[16px] font-bold text-xl shadow-lg transition-all active:scale-95">
-               เล่นอีกครั้ง 🔄
-             </button>
-           )}
+         <div className="absolute inset-0 bg-background/95 backdrop-blur-md z-40 flex flex-col items-center justify-center p-6 text-center text-main overflow-y-auto">
+           <div className="w-full max-w-lg bg-elevated border border-border p-8 rounded-[28px] shadow-2xl flex flex-col items-center animate-fade-in">
+             <div className="text-6xl mb-3 animate-bounce">🏆</div>
+             <h2 className="text-xl font-bold mb-2 text-warning uppercase tracking-wider">ผู้ชนะการต่อคำ!</h2>
+             
+             {/* Winner avatar */}
+             <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-warning shadow-lg my-3 bg-surface flex items-center justify-center">
+                {winner?.photoURL ? (
+                  <img src={winner.photoURL} alt={winner.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-4xl font-black text-warning">
+                    {winner?.name.charAt(0).toUpperCase() || '?'}
+                  </span>
+                )}
+             </div>
+
+             <div className="text-3xl sm:text-4xl text-main font-black mb-2 drop-shadow-md">{winner?.name || 'ไม่มีผู้ชนะ'}</div>
+             <p className="mb-6 text-sm font-medium text-muted">คำศัพท์ที่พูดไปในรอบนี้ทั้งหมด {words.length} คำ</p>
+
+             {/* Action buttons */}
+             <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
+               <button 
+                 onClick={() => setIsScoreboardOpen(true)}
+                 className="bg-surface hover:bg-border border border-border text-main px-6 py-3.5 rounded-[16px] font-bold text-base shadow transition-all active:scale-95 flex items-center justify-center gap-2"
+               >
+                 <Trophy className="w-4 h-4 text-warning" />
+                 ดูกระดานคะแนน
+               </button>
+               {isHost && (
+                 <button 
+                   onClick={() => updateDoc(doc(db, 'rooms', roomId!), { status: 'lobby' })} 
+                   className="bg-primary hover:bg-primary/90 text-white px-8 py-3.5 rounded-[16px] font-bold text-base shadow-lg transition-all active:scale-95"
+                 >
+                   เล่นอีกครั้ง 🔄
+                 </button>
+               )}
+             </div>
+           </div>
          </div>
        );
      }
@@ -211,13 +257,24 @@ export default function Game() {
 
   return (
     <div className="flex-1 flex flex-col p-4 md:p-8 relative h-screen max-h-screen">
-      <button 
-        onClick={leaveRoom}
-        className="absolute top-4 left-4 text-muted hover:text-danger font-bold z-50 transition-colors bg-background/50 px-3 py-1 rounded-full backdrop-blur-sm border border-border flex items-center gap-2"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-        ออกจากห้อง
-      </button>
+      {/* Top Header Buttons */}
+      <div className="absolute top-4 inset-x-4 flex justify-between items-center z-30 pointer-events-none">
+        <button 
+          onClick={leaveRoom}
+          className="pointer-events-auto text-muted hover:text-danger font-bold transition-colors bg-background/80 hover:bg-surface px-4 py-2 rounded-full backdrop-blur-sm border border-border flex items-center gap-2 shadow-sm text-sm"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+          ออกจากห้อง
+        </button>
+
+        <button 
+          onClick={() => setIsScoreboardOpen(true)}
+          className="pointer-events-auto text-main hover:text-primary font-bold transition-all bg-background/80 hover:bg-surface px-4 py-2 rounded-full backdrop-blur-sm border border-border flex items-center gap-2 shadow-sm text-sm"
+        >
+          <Trophy className="w-4 h-4 text-warning" />
+          <span>กระดานคะแนน</span>
+        </button>
+      </div>
 
       {renderDeadOrFinishedOverlay()}
 
@@ -286,9 +343,18 @@ export default function Game() {
             <div className="flex flex-wrap justify-center gap-4 w-full">
               {sortedPlayers.map(p => {
                 const isMe = p.uid === myUid;
+                const winRate = p.gamesPlayed ? Math.round(((p.wins || 0) / p.gamesPlayed) * 100) : 0;
                 
                 return (
-                  <div key={p.uid} className={`relative rounded-[20px] overflow-hidden shadow-lg transition-all duration-300 bg-surface ${p.uid === turnUid ? 'border-4 border-primary scale-105 shadow-primary/20' : (p.alive ? 'border border-border' : 'opacity-40 grayscale border border-border')}`} style={{ width: 'min(100%, 220px)', aspectRatio: '1/1' }}>
+                  <div 
+                    key={p.uid} 
+                    className={`relative group rounded-[20px] overflow-hidden shadow-lg transition-all duration-300 bg-surface ${
+                      p.uid === turnUid 
+                        ? 'border-4 border-primary scale-105 shadow-primary/20 ring-2 ring-primary/30' 
+                        : (p.alive ? 'border border-border' : 'opacity-40 grayscale border border-border')
+                    }`} 
+                    style={{ width: 'min(100%, 220px)', aspectRatio: '1/1' }}
+                  >
                     
                     <div className="w-full h-full flex items-center justify-center relative">
                        {/* Decorative background shape */}
@@ -328,6 +394,45 @@ export default function Game() {
                          กำลังต่อคำ...
                        </div>
                     )}
+
+                    {/* Hover Stats Tooltip Card */}
+                    <div className="absolute inset-0 bg-background/95 backdrop-blur-md p-3.5 flex flex-col justify-between opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-30 border border-primary/40 rounded-[20px] shadow-2xl">
+                       <div>
+                          <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-border/80">
+                             <div className="w-6 h-6 rounded-full overflow-hidden bg-primary/20 flex items-center justify-center shrink-0">
+                                {p.photoURL ? (
+                                  <img src={p.photoURL} alt={p.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="font-bold text-[10px] text-primary">{p.name.charAt(0)}</span>
+                                )}
+                             </div>
+                             <span className="font-black text-main text-xs truncate">{p.name}</span>
+                          </div>
+
+                          <div className="space-y-1 text-[11px]">
+                             <div className="flex justify-between items-center">
+                                <span className="text-muted font-medium">🏆 ชนะ:</span>
+                                <span className="font-bold text-warning">{p.wins || 0} ครั้ง</span>
+                             </div>
+                             <div className="flex justify-between items-center">
+                                <span className="text-muted font-medium">🎮 เล่นทั้งหมด:</span>
+                                <span className="font-bold text-main">{p.gamesPlayed || 0} เกม</span>
+                             </div>
+                             <div className="flex justify-between items-center">
+                                <span className="text-muted font-medium">📊 Win Rate:</span>
+                                <span className="font-black text-primary">{winRate}%</span>
+                             </div>
+                             <div className="flex justify-between items-center border-t border-border/50 pt-1 mt-1">
+                                <span className="text-muted font-medium">💬 ต่อได้รอบนี้:</span>
+                                <span className="font-bold text-success">{p.score || 0} คำ</span>
+                             </div>
+                          </div>
+                       </div>
+
+                       <div className="text-[10px] text-center text-muted font-bold bg-surface/80 py-1 rounded-lg">
+                          {p.alive ? '🟢 ยังอยู่ในเกม' : (p.isSpectator ? '👀 ผู้ชม' : '💀 ตกรอบแล้ว')}
+                       </div>
+                    </div>
                   </div>
                 );
               })}
@@ -427,6 +532,13 @@ export default function Game() {
             </div>
          </div>
       </div>
+      {/* Scoreboard Modal */}
+      <ScoreboardModal 
+        isOpen={isScoreboardOpen} 
+        onClose={() => setIsScoreboardOpen(false)} 
+        players={players} 
+        myUid={myUid} 
+      />
     </div>
   );
 }
