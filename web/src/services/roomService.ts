@@ -4,7 +4,7 @@ import { useGameStore, type Player } from '../store/gameStore';
 
 const ROOMS_COLLECTION = 'rooms';
 
-export const createRoom = async (hostUid: string, hostName: string) => {
+export const createRoom = async (hostUid: string, hostName: string, photoURL?: string | null) => {
   // Generate 6 digit code
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   
@@ -22,6 +22,7 @@ export const createRoom = async (hostUid: string, hostName: string) => {
   // Add host as first player
   await setDoc(doc(db, `${ROOMS_COLLECTION}/${roomId}/players`, hostUid), {
     name: hostName,
+    photoURL: photoURL || null,
     alive: true,
     joinedAt: Date.now(),
     order: 0
@@ -33,7 +34,7 @@ export const createRoom = async (hostUid: string, hostName: string) => {
   return { roomId, code };
 };
 
-export const joinRoomByCode = async (code: string, uid: string, name: string) => {
+export const joinRoomByCode = async (code: string, uid: string, name: string, photoURL?: string | null) => {
   const q = query(collection(db, ROOMS_COLLECTION), where("code", "==", code));
   const snapshot = await getDocs(q);
   
@@ -53,6 +54,7 @@ export const joinRoomByCode = async (code: string, uid: string, name: string) =>
 
   await setDoc(doc(db, `${ROOMS_COLLECTION}/${roomId}/players`, uid), {
     name,
+    photoURL: photoURL || null,
     alive: !isSpectator,
     isSpectator,
     joinedAt: Date.now(),

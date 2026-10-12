@@ -294,8 +294,14 @@ export default function Game() {
                        {/* Decorative background shape */}
                        <div className="absolute inset-0 bg-gradient-to-br from-surface to-background opacity-50"></div>
                        
-                       <div className={`relative w-24 h-24 rounded-full flex items-center justify-center text-5xl font-black shadow-inner transition-transform duration-300 ${p.uid === turnUid ? 'bg-primary text-background scale-110' : 'bg-elevated text-muted'}`}>
-                          {p.name.charAt(0).toUpperCase()}
+                       <div className={`relative w-24 h-24 rounded-full overflow-hidden flex items-center justify-center shadow-lg transition-transform duration-300 ${p.uid === turnUid ? 'scale-110 ring-4 ring-primary shadow-primary/40' : 'border-2 border-border'}`}>
+                          {p.photoURL ? (
+                            <img src={p.photoURL} alt={p.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className={`w-full h-full flex items-center justify-center text-5xl font-black ${p.uid === turnUid ? 'bg-primary text-background' : 'bg-elevated text-muted'}`}>
+                              {p.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
                        </div>
                     </div>
                     

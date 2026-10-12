@@ -2,7 +2,7 @@ import { useGameStore } from '../store/gameStore';
 import { leaveRoom } from '../services/roomService';
 import { doc, writeBatch } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { Copy, Users, User, LogOut, CheckCircle2 } from 'lucide-react';
+import { Copy, Users, LogOut, CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
 
 export default function Lobby() {
@@ -91,10 +91,18 @@ export default function Lobby() {
               <ul className="space-y-3">
                 {playerList.map(p => (
                   <li key={p.uid} className="bg-surface border border-border p-4 rounded-[16px] shadow-sm flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                       <User className="w-5 h-5 text-primary" />
+                    <div className="w-11 h-11 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border border-border flex-shrink-0">
+                      {p.photoURL ? (
+                        <img src={p.photoURL} alt={p.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="font-black text-primary text-lg">
+                          {p.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
                     </div>
-                    <span className="font-bold text-main text-lg flex-1">{p.name} {p.uid === myUid && <span className="text-muted text-sm ml-2">(คุณ)</span>}</span>
+                    <span className="font-bold text-main text-lg flex-1 truncate">
+                      {p.name} {p.uid === myUid && <span className="text-muted text-sm ml-2 font-normal">(คุณ)</span>}
+                    </span>
                     {p.uid === hostUid && (
                       <span className="text-xs bg-warning/20 text-warning px-3 py-1.5 rounded-full font-bold uppercase tracking-wider">
                         HOST

@@ -1,53 +1,82 @@
 import { useEffect, useState } from 'react';
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './services/firebase';
 import { useGameStore } from './store/gameStore';
+import { getUserProfile } from './services/userService';
+import Auth from './pages/Auth';
 import Home from './pages/Home';
 import Lobby from './pages/Lobby';
 import Game from './pages/Game';
 
-import Welcome from './pages/Welcome';
-
 function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
   const status = useGameStore(state => state.status);
   const roomId = useGameStore(state => state.roomId);
   const setMyUid = useGameStore(state => state.setMyUid);
-  const myName = useGameStore(state => state.myName);
+  const setMyName = useGameStore(state => state.setMyName);
+  const setMyPhotoURL = useGameStore(state => state.setMyPhotoURL);
+  const setMyEmail = useGameStore(state => state.setMyEmail);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        setCurrentUser(user);
         setMyUid(user.uid);
-        setIsAuthReady(true);
+        setMyEmail(user.email || null);
+
+        // Fetch user's persistent profile from Firestore
+        const profile = await getUserProfile(user.uid);
+        if (profile) {
+          setMyName(profile.name || user.displayName || 'ผู้เล่น');
+          if (profile.photoURL) {
+            setMyPhotoURL(profile.photoURL);
+          } else if (user.photoURL) {
+            setMyPhotoURL(user.photoURL);
+          }
+        } else {
+          setMyName(user.displayName || 'ผู้เล่น');
+          if (user.photoURL) setMyPhotoURL(user.photoURL);
+        }
       } else {
-        signInAnonymously(auth).catch(console.error);
+        setCurrentUser(null);
+        setMyUid(null);
+        setMyName(null);
+        setMyPhotoURL(null);
+        setMyEmail(null);
       }
+      setIsAuthReady(true);
     });
+
     return () => unsubscribe();
-  }, [setMyUid]);
+  }, [setMyUid, setMyName, setMyPhotoURL, setMyEmail]);
 
   useEffect(() => {
-     if (roomId && isAuthReady) {
-        import('./services/roomService').then(({ subscribeToRoom }) => {
-           subscribeToRoom(roomId);
-        });
-     }
-  }, [roomId, isAuthReady]);
+    if (roomId && isAuthReady && currentUser) {
+      import('./services/roomService').then(({ subscribeToRoom }) => {
+        subscribeToRoom(roomId);
+      });
+    }
+  }, [roomId, isAuthReady, currentUser]);
 
   if (!isAuthReady) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-xl text-muted font-bold animate-pulse">กำลังเชื่อมต่อระบบ...</div>
+        <div className="text-xl text-muted font-bold animate-pulse">กำลังโหลดข้อมูล...</div>
       </div>
     );
+  }
+
+  // Not logged in -> Show Google & Email Auth page
+  if (!currentUser) {
+    return <Auth />;
   }
 
   return (
     <div className="min-h-screen bg-background font-sans text-main">
       <div className="max-w-6xl mx-auto min-h-screen bg-surface md:shadow-2xl relative flex flex-col md:border-x border-border">
-        {!myName && <Welcome />}
-        {myName && !roomId && <Home />}
+        {!roomId && <Home />}
         {roomId && status === 'lobby' && <Lobby />}
         {roomId && (status === 'playing' || status === 'challenge' || status === 'finished') && <Game />}
       </div>
