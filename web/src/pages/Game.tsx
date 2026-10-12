@@ -313,7 +313,7 @@ export default function Game() {
                  )}
                  <div className="mt-8 text-sm text-primary font-bold animate-pulse flex items-center gap-2">
                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                   AI กำลังพิจารณาความเกี่ยวโยง...
+                   AI กำลังพิจารณาความเกี่ยวโยง... (AI 0.5 เสียง, ผู้เล่นคนละ 1 เสียง)
                  </div>
               </>
             ) : (
@@ -324,7 +324,7 @@ export default function Game() {
                     <span className="text-danger font-bold flex items-center gap-2">{challenge.result?.failCount} เสียง <span className="text-3xl">❌</span></span>
                  </div>
                  <div className="p-4 bg-surface/50 border border-border rounded-[16px] mb-6 text-sm text-left">
-                    <strong className="text-primary block mb-1">ความเห็นจาก AI (1 เสียง): </strong> 
+                    <strong className="text-primary block mb-1">ความเห็นจาก AI (0.5 เสียง): </strong> 
                     <span className="text-main font-bold">{challenge.aiVote?.pass ? '✅ ให้ผ่าน' : '❌ ปัดตก'}</span> <br/>
                     <span className="text-muted mt-1 block leading-relaxed">{challenge.aiVote?.reason}</span>
                  </div>

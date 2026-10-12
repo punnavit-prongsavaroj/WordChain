@@ -147,7 +147,7 @@ export default function Lobby() {
                   </li>
                   <li className="flex items-start gap-3">
                      <span className="bg-warning/20 text-warning w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 font-bold">4</span>
-                     <span>ถ้าเพื่อนพูดคำที่ไม่เกี่ยวข้องกัน คุณสามารถกด <strong>"ยกมือประท้วง"</strong> เพื่อให้เพื่อนในวงช่วยกันโหวตปัดตกได้!</span>
+                     <span>ถ้าเพื่อนพูดคำที่ไม่เกี่ยวข้องกัน คุณสามารถกด <strong>"ยกมือประท้วง"</strong> เพื่อให้เพื่อนในวงช่วยกันโหวตปัดตกได้! (ผู้เล่นคนละ 1 เสียง, AI 0.5 เสียง)</span>
                   </li>
                </ul>
             </div>

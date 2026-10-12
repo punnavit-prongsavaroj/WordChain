@@ -60,10 +60,10 @@ export function useChallengeEngine() {
            else passCount++; // True or undefined means pass
         }
 
-        // Add AI vote
+        // Add AI vote (AI has 0.5 vote weight, players have 1 vote)
         if (challenge.aiVote) {
-           if (challenge.aiVote.pass) passCount++;
-           else failCount++;
+           if (challenge.aiVote.pass) passCount += 0.5;
+           else failCount += 0.5;
         }
 
         // If votes are equal, the word passes (benefit of the doubt)
