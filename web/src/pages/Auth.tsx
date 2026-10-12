@@ -63,6 +63,9 @@ export default function Auth() {
         // User closed the popup, do nothing
       } else if (err.code === 'auth/operation-not-allowed') {
         setError('กรุณาเปิดใช้งาน Google Sign-In ใน Firebase Console (Authentication > Sign-in method > Google)');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        const currentDomain = window.location.hostname;
+        setError(`โดเมน (${currentDomain}) ยังไม่ได้รับอนุญาตใน Firebase! กรุณาไปที่ Firebase Console > Authentication > Settings > Authorized domains แล้วกดเพิ่ม "${currentDomain}"`);
       } else {
         setError(err.message || 'ไม่สามารถเข้าสู่ระบบด้วย Google ได้');
       }
