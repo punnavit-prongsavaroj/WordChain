@@ -118,7 +118,7 @@ export const recordGameFinished = async (
   }
 };
 
-export const getGlobalLeaderboard = async (limitCount = 20): Promise<UserProfile[]> => {
+export const getGlobalLeaderboard = async (): Promise<UserProfile[]> => {
   try {
     const snapshot = await getDocs(collection(db, 'users'));
     const users: UserProfile[] = [];
@@ -136,17 +136,7 @@ export const getGlobalLeaderboard = async (limitCount = 20): Promise<UserProfile
       });
     });
 
-    // Sort by wins desc, then winRate desc
-    users.sort((a, b) => {
-      const winsA = a.wins || 0;
-      const winsB = b.wins || 0;
-      if (winsB !== winsA) return winsB - winsA;
-      const rateA = a.gamesPlayed ? winsA / a.gamesPlayed : 0;
-      const rateB = b.gamesPlayed ? winsB / b.gamesPlayed : 0;
-      return rateB - rateA;
-    });
-
-    return users.slice(0, limitCount);
+    return users;
   } catch (error) {
     console.error('Error fetching global leaderboard:', error);
     return [];

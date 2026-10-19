@@ -1,4 +1,5 @@
-import { Trophy, X, Flame } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Trophy, X, Flame, BookOpen, Percent } from 'lucide-react';
 import type { Player } from '../store/gameStore';
 
 interface ScoreboardModalProps {
@@ -8,22 +9,51 @@ interface ScoreboardModalProps {
   myUid: string | null;
 }
 
-export default function ScoreboardModal({ isOpen, onClose, players, myUid }: ScoreboardModalProps) {
-  if (!isOpen) return null;
+type ScoreboardTab = 'match' | 'wins' | 'words' | 'winrate';
 
-  // Sort players: alive first, then by match score desc, then total wins desc
-  const sortedPlayers = Object.values(players).sort((a, b) => {
-    // 1. Alive before dead
-    if (a.alive !== b.alive) return a.alive ? -1 : 1;
-    // 2. Score in match
-    const scoreA = a.score || 0;
-    const scoreB = b.score || 0;
-    if (scoreB !== scoreA) return scoreB - scoreA;
-    // 3. Overall wins
-    const winsA = a.wins || 0;
-    const winsB = b.wins || 0;
-    return winsB - winsA;
-  });
+export default function ScoreboardModal({ isOpen, onClose, players, myUid }: ScoreboardModalProps) {
+  const [tab, setTab] = useState<ScoreboardTab>('match');
+
+  const sortedPlayers = useMemo(() => {
+    const list = Object.values(players);
+    if (tab === 'match') {
+      return list.sort((a, b) => {
+        if (a.alive !== b.alive) return a.alive ? -1 : 1;
+        const scoreA = a.score || 0;
+        const scoreB = b.score || 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return (b.wins || 0) - (a.wins || 0);
+      });
+    }
+    if (tab === 'wins') {
+      return list.sort((a, b) => {
+        const winsA = a.wins || 0;
+        const winsB = b.wins || 0;
+        if (winsB !== winsA) return winsB - winsA;
+        return (b.score || 0) - (a.score || 0);
+      });
+    }
+    if (tab === 'words') {
+      return list.sort((a, b) => {
+        const wordsA = a.wordCount || 0;
+        const wordsB = b.wordCount || 0;
+        if (wordsB !== wordsA) return wordsB - wordsA;
+        return (b.wins || 0) - (a.wins || 0);
+      });
+    }
+    if (tab === 'winrate') {
+      return list.sort((a, b) => {
+        const rateA = a.gamesPlayed ? ((a.wins || 0) / a.gamesPlayed) : 0;
+        const rateB = b.gamesPlayed ? ((b.wins || 0) / b.gamesPlayed) : 0;
+        if (Math.abs(rateB - rateA) > 0.0001) return rateB - rateA;
+        if ((b.gamesPlayed || 0) !== (a.gamesPlayed || 0)) return (b.gamesPlayed || 0) - (a.gamesPlayed || 0);
+        return (b.wins || 0) - (a.wins || 0);
+      });
+    }
+    return list;
+  }, [players, tab]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
@@ -44,6 +74,57 @@ export default function ScoreboardModal({ isOpen, onClose, players, myUid }: Sco
             className="p-2 text-muted hover:text-main rounded-full hover:bg-surface transition-colors"
           >
             <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Category Tabs */}
+        <div className="grid grid-cols-4 gap-1.5 p-1 mx-6 mt-4 bg-surface rounded-[16px] border border-border">
+          <button
+            onClick={() => setTab('match')}
+            className={`py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+              tab === 'match'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-muted hover:text-main hover:bg-elevated'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5" />
+            <span>รอบนี้</span>
+          </button>
+
+          <button
+            onClick={() => setTab('wins')}
+            className={`py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+              tab === 'wins'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-muted hover:text-main hover:bg-elevated'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span>จำนวนชนะ</span>
+          </button>
+
+          <button
+            onClick={() => setTab('words')}
+            className={`py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+              tab === 'words'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-muted hover:text-main hover:bg-elevated'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>จำนวนคำ</span>
+          </button>
+
+          <button
+            onClick={() => setTab('winrate')}
+            className={`py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+              tab === 'winrate'
+                ? 'bg-primary text-white shadow-sm'
+                : 'text-muted hover:text-main hover:bg-elevated'
+            }`}
+          >
+            <Percent className="w-3.5 h-3.5" />
+            <span>Win Rate</span>
           </button>
         </div>
 
@@ -82,7 +163,7 @@ export default function ScoreboardModal({ isOpen, onClose, players, myUid }: Sco
                     )}
                   </div>
 
-                  {/* Name & Match Score */}
+                  {/* Name & Title */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-main text-base truncate">{p.name}</span>
@@ -110,21 +191,64 @@ export default function ScoreboardModal({ isOpen, onClose, players, myUid }: Sco
                     </div>
                   </div>
 
-                  {/* Stats (Wins, Games, Win Rate) */}
-                  <div className="flex items-center gap-4 text-right">
-                    <div>
-                      <div className="text-xs text-muted font-medium">ชนะ / ทั้งหมด</div>
-                      <div className="text-sm font-bold text-main">
-                        <span className="text-warning">{p.wins || 0}</span> / {p.gamesPlayed || 0}
-                      </div>
-                    </div>
-
-                    <div className="w-16">
-                      <div className="text-xs text-muted font-medium">Win Rate</div>
-                      <div className="text-sm font-black text-primary">
-                        {winRate}%
-                      </div>
-                    </div>
+                  {/* Stats based on active tab */}
+                  <div className="flex items-center gap-4 text-right flex-shrink-0">
+                    {tab === 'match' && (
+                      <>
+                        <div>
+                          <div className="text-xs text-muted font-medium">รอบนี้</div>
+                          <div className="text-sm font-bold text-success flex items-center justify-end gap-1">
+                            <Flame className="w-3.5 h-3.5" /> {p.score || 0} คำ
+                          </div>
+                        </div>
+                        <div className="w-16">
+                          <div className="text-xs text-muted font-medium">ชนะรวม</div>
+                          <div className="text-sm font-bold text-warning">{p.wins || 0}</div>
+                        </div>
+                      </>
+                    )}
+                    {tab === 'wins' && (
+                      <>
+                        <div>
+                          <div className="text-xs text-muted font-medium">ชนะ / ทั้งหมด</div>
+                          <div className="text-sm font-bold text-main">
+                            <span className="text-warning font-black">{p.wins || 0}</span> / {p.gamesPlayed || 0}
+                          </div>
+                        </div>
+                        <div className="w-16">
+                          <div className="text-xs text-muted font-medium">Win Rate</div>
+                          <div className="text-sm font-black text-primary">{winRate}%</div>
+                        </div>
+                      </>
+                    )}
+                    {tab === 'words' && (
+                      <>
+                        <div>
+                          <div className="text-xs text-muted font-medium">คลังคำศัพท์</div>
+                          <div className="text-sm font-black text-success flex items-center justify-end gap-1">
+                            <BookOpen className="w-3.5 h-3.5" /> {(p.wordCount || 0).toLocaleString()} คำ
+                          </div>
+                        </div>
+                        <div className="w-16">
+                          <div className="text-xs text-muted font-medium">รอบนี้</div>
+                          <div className="text-sm font-bold text-main">{p.score || 0} คำ</div>
+                        </div>
+                      </>
+                    )}
+                    {tab === 'winrate' && (
+                      <>
+                        <div>
+                          <div className="text-xs text-muted font-medium">ชนะ / ทั้งหมด</div>
+                          <div className="text-sm font-bold text-main">
+                            <span className="text-warning">{p.wins || 0}</span> / {p.gamesPlayed || 0}
+                          </div>
+                        </div>
+                        <div className="w-16">
+                          <div className="text-xs text-muted font-medium">Win Rate</div>
+                          <div className="text-sm font-black text-primary">{winRate}%</div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               );

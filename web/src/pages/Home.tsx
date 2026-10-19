@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createRoom, joinRoomByCode, subscribeToRoom } from '../services/roomService';
 import { useGameStore } from '../store/gameStore';
 import { checkWordWithAPI } from '../services/apiClient';
@@ -6,7 +6,9 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { getGlobalLeaderboard, type UserProfile } from '../services/userService';
 import ProfileModal from '../components/ProfileModal';
 import DictionaryModal from '../components/DictionaryModal';
-import { Mic, User, Edit3, Sparkles, Trophy, RotateCcw, BookOpen } from 'lucide-react';
+import { Mic, User, Edit3, Sparkles, Trophy, RotateCcw, BookOpen, Percent } from 'lucide-react';
+
+type LeaderboardTab = 'wins' | 'words' | 'winrate';
 
 export default function Home() {
   const [code, setCode] = useState('');
@@ -17,6 +19,7 @@ export default function Home() {
   
   // Leaderboard State
   const [leaderboard, setLeaderboard] = useState<UserProfile[]>([]);
+  const [leaderboardTab, setLeaderboardTab] = useState<LeaderboardTab>('wins');
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   
   // Test Feature State
@@ -36,7 +39,7 @@ export default function Home() {
   const loadLeaderboard = async () => {
     setIsLeaderboardLoading(true);
     try {
-      const data = await getGlobalLeaderboard(15);
+      const data = await getGlobalLeaderboard();
       setLeaderboard(data);
     } catch (e) {
       console.error(e);
@@ -44,6 +47,38 @@ export default function Home() {
       setIsLeaderboardLoading(false);
     }
   };
+
+  const sortedLeaderboard = useMemo(() => {
+    const list = [...leaderboard];
+    if (leaderboardTab === 'wins') {
+      return list.sort((a, b) => {
+        const winsA = a.wins || 0;
+        const winsB = b.wins || 0;
+        if (winsB !== winsA) return winsB - winsA;
+        const rateA = a.gamesPlayed ? winsA / a.gamesPlayed : 0;
+        const rateB = b.gamesPlayed ? winsB / b.gamesPlayed : 0;
+        return rateB - rateA;
+      });
+    }
+    if (leaderboardTab === 'words') {
+      return list.sort((a, b) => {
+        const wordsA = a.wordCount || 0;
+        const wordsB = b.wordCount || 0;
+        if (wordsB !== wordsA) return wordsB - wordsA;
+        return (b.wins || 0) - (a.wins || 0);
+      });
+    }
+    if (leaderboardTab === 'winrate') {
+      return list.sort((a, b) => {
+        const rateA = a.gamesPlayed ? ((a.wins || 0) / a.gamesPlayed) : 0;
+        const rateB = b.gamesPlayed ? ((b.wins || 0) / b.gamesPlayed) : 0;
+        if (Math.abs(rateB - rateA) > 0.0001) return rateB - rateA;
+        if ((b.gamesPlayed || 0) !== (a.gamesPlayed || 0)) return (b.gamesPlayed || 0) - (a.gamesPlayed || 0);
+        return (b.wins || 0) - (a.wins || 0);
+      });
+    }
+    return list;
+  }, [leaderboard, leaderboardTab]);
 
   useEffect(() => {
     loadLeaderboard();
@@ -196,16 +231,16 @@ export default function Home() {
 
             {/* Global Leaderboard Card */}
             <div className="bg-elevated rounded-[24px] shadow-lg border border-border p-6 flex flex-col mb-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2.5">
                   <div className="bg-warning/20 p-2.5 rounded-2xl text-warning">
                     <Trophy className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="font-black text-main text-lg flex items-center gap-2">
-                      อันดับรวมทั้งหมด (Global Scoreboard)
+                      ตารางอันดับ (Leaderboard)
                     </h3>
-                    <p className="text-xs text-muted font-medium">รวมคะแนนชนะและสถิติของผู้เล่นทุกคน</p>
+                    <p className="text-xs text-muted font-medium">จัดอันดับตามสถิติของผู้เล่นทุกคน</p>
                   </div>
                 </div>
 
@@ -219,17 +254,56 @@ export default function Home() {
                 </button>
               </div>
 
+              {/* Category Filter Tabs */}
+              <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface rounded-[16px] border border-border mb-4">
+                <button
+                  onClick={() => setLeaderboardTab('wins')}
+                  className={`py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    leaderboardTab === 'wins'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-muted hover:text-main hover:bg-elevated'
+                  }`}
+                >
+                  <Trophy className="w-3.5 h-3.5" />
+                  <span>จำนวนชนะ</span>
+                </button>
+
+                <button
+                  onClick={() => setLeaderboardTab('words')}
+                  className={`py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    leaderboardTab === 'words'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-muted hover:text-main hover:bg-elevated'
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>จำนวนคำ</span>
+                </button>
+
+                <button
+                  onClick={() => setLeaderboardTab('winrate')}
+                  className={`py-2 px-1 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    leaderboardTab === 'winrate'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-muted hover:text-main hover:bg-elevated'
+                  }`}
+                >
+                  <Percent className="w-3.5 h-3.5" />
+                  <span>Win Rate</span>
+                </button>
+              </div>
+
               {isLeaderboardLoading && leaderboard.length === 0 ? (
                 <div className="py-8 text-center text-muted font-bold text-sm animate-pulse">
                   กำลังโหลดอันดับผู้เล่น...
                 </div>
-              ) : leaderboard.length === 0 ? (
+              ) : sortedLeaderboard.length === 0 ? (
                 <div className="py-8 text-center text-muted font-bold text-sm bg-surface rounded-2xl border border-border">
                   ยังไม่มีสถิติการแข่งขัน เล่นเกมให้จบเพื่อขึ้นกระดานอันดับ!
                 </div>
               ) : (
                 <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
-                  {leaderboard.map((u, idx) => {
+                  {sortedLeaderboard.map((u, idx) => {
                     const isMe = u.uid === myUid;
                     const winRate = u.gamesPlayed ? Math.round(((u.wins || 0) / u.gamesPlayed) * 100) : 0;
                     
@@ -272,26 +346,68 @@ export default function Home() {
                           <div className="text-[11px] text-primary font-bold truncate">
                             🎖️ {u.title || 'ผู้ฝึกต่อคำ'}
                           </div>
+                          
+                          {/* Secondary Stats */}
                           <div className="text-[11px] text-muted flex items-center gap-1.5 mt-0.5">
-                            <span>{u.gamesPlayed || 0} เกม</span>
-                            <span>•</span>
-                            <span className="text-primary font-bold">{winRate}% WR</span>
-                            {u.wordCount !== undefined && (
+                            {leaderboardTab === 'wins' && (
                               <>
+                                <span>{u.gamesPlayed || 0} เกม</span>
                                 <span>•</span>
-                                <span className="text-main font-semibold">📖 {u.wordCount} คำ</span>
+                                <span className="text-primary font-bold">{winRate}% WR</span>
+                                <span>•</span>
+                                <span className="text-success font-semibold">📖 {u.wordCount || 0} คำ</span>
+                              </>
+                            )}
+                            {leaderboardTab === 'words' && (
+                              <>
+                                <span className="text-warning font-bold">🏆 {u.wins || 0} ชนะ</span>
+                                <span>•</span>
+                                <span>{u.gamesPlayed || 0} เกม</span>
+                                <span>•</span>
+                                <span className="text-primary font-bold">{winRate}% WR</span>
+                              </>
+                            )}
+                            {leaderboardTab === 'winrate' && (
+                              <>
+                                <span className="text-warning font-bold">🏆 {u.wins || 0} ชนะ</span>
+                                <span>•</span>
+                                <span>เล่น {u.gamesPlayed || 0} เกม</span>
+                                <span>•</span>
+                                <span className="text-success font-semibold">📖 {u.wordCount || 0} คำ</span>
                               </>
                             )}
                           </div>
                         </div>
 
-                        {/* Wins Count */}
-                        <div className="text-right flex-shrink-0">
-                          <div className="text-sm font-black text-warning flex items-center justify-end gap-1">
-                            <Trophy className="w-3.5 h-3.5" />
-                            {u.wins || 0}
-                          </div>
-                          <div className="text-[10px] text-muted font-medium">ชนะ</div>
+                        {/* Primary Stat Badge based on Tab */}
+                        <div className="text-right flex-shrink-0 min-w-[70px]">
+                          {leaderboardTab === 'wins' && (
+                            <>
+                              <div className="text-sm font-black text-warning flex items-center justify-end gap-1">
+                                <Trophy className="w-3.5 h-3.5" />
+                                {u.wins || 0}
+                              </div>
+                              <div className="text-[10px] text-muted font-medium">ชนะ</div>
+                            </>
+                          )}
+                          {leaderboardTab === 'words' && (
+                            <>
+                              <div className="text-sm font-black text-success flex items-center justify-end gap-1">
+                                <BookOpen className="w-3.5 h-3.5" />
+                                {(u.wordCount || 0).toLocaleString()}
+                              </div>
+                              <div className="text-[10px] text-muted font-medium">คำในคลัง</div>
+                            </>
+                          )}
+                          {leaderboardTab === 'winrate' && (
+                            <>
+                              <div className="text-sm font-black text-primary flex items-center justify-end gap-1">
+                                <Percent className="w-3.5 h-3.5" />
+                                {winRate}%
+                              </div>
+                              <div className="text-[10px] text-muted font-medium">Win Rate</div>
+                            </>
+                          )}
                         </div>
                       </div>
                     );
