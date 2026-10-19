@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   signInWithPopup, 
   signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
@@ -25,6 +26,19 @@ export default function Auth() {
   const setMyName = useGameStore(state => state.setMyName);
   const setMyPhotoURL = useGameStore(state => state.setMyPhotoURL);
   const setMyEmail = useGameStore(state => state.setMyEmail);
+
+  useEffect(() => {
+    // Process redirect result if returning from Google OAuth redirect
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          await handleAuthSuccess(result.user);
+        }
+      })
+      .catch((err) => {
+        console.error('Redirect sign-in error:', err);
+      });
+  }, []);
 
   // Sync user profile after successful login
   const handleAuthSuccess = async (user: any, customName?: string) => {
@@ -51,25 +65,33 @@ export default function Auth() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = async (forceRedirect = false) => {
     setError('');
     setGoogleLoading(true);
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+
+      if (forceRedirect) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
       const result = await signInWithPopup(auth, provider);
       await handleAuthSuccess(result.user);
     } catch (err: any) {
       console.error('Google Sign In Error:', err);
       if (err.code === 'auth/popup-closed-by-user') {
         // User closed the popup, do nothing
-      } else if (err.code === 'auth/popup-blocked') {
-        // Try fallback to redirect login
+      } else if (err.code === 'auth/popup-blocked' || err.message?.includes('Cross-Origin-Opener-Policy')) {
+        // Automatically fallback to redirect login
         try {
           const provider = new GoogleAuthProvider();
+          provider.setCustomParameters({ prompt: 'select_account' });
           await signInWithRedirect(auth, provider);
           return;
         } catch {
-          setError('เบราว์เซอร์บล็อกหน้าต่าง Pop-up: กรุณากดที่ไอคอนรูปหน้าต่างกากบาทสีแดงบนแถบ URL (ด้านขวาบน) แล้วเลือก "อนุญาต Pop-up เสมอ" เพื่อเข้าสู่ระบบ');
+          setError('เบราว์เซอร์บล็อกหน้าต่าง Pop-up: กรุณากดลิงก์ "ล็อกอินแบบเปลี่ยนหน้า (Redirect)" ด้านล่าง');
         }
       } else if (err.code === 'auth/operation-not-allowed') {
         setError('กรุณาเปิดใช้งาน Google Sign-In ใน Firebase Console (Authentication > Sign-in method > Google)');
@@ -154,9 +176,9 @@ export default function Auth() {
         {/* 1. Google Sign-In Button */}
         <button
           type="button"
-          onClick={handleGoogleSignIn}
+          onClick={() => handleGoogleSignIn(false)}
           disabled={googleLoading || loading}
-          className="w-full bg-white hover:bg-gray-50 text-gray-800 font-bold py-4 px-6 rounded-[18px] border border-gray-200 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 text-base mb-6"
+          className="w-full bg-white hover:bg-gray-50 text-gray-800 font-bold py-4 px-6 rounded-[18px] border border-gray-200 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 active:scale-[0.98] disabled:opacity-50 text-base mb-2"
         >
           {googleLoading ? (
             <Loader2 className="w-5 h-5 animate-spin text-gray-600" />
@@ -182,6 +204,18 @@ export default function Auth() {
           )}
           <span>{googleLoading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบด้วยบัญชี Google'}</span>
         </button>
+
+        {/* Fallback redirect link */}
+        <div className="text-center mb-6">
+          <button
+            type="button"
+            onClick={() => handleGoogleSignIn(true)}
+            disabled={googleLoading || loading}
+            className="text-[11px] text-muted hover:text-primary font-medium underline transition-colors"
+          >
+            ป๊อปอัปมีปัญหา? คลิกที่นี่เพื่อล็อกอินแบบเปลี่ยนหน้า (Redirect)
+          </button>
+        </div>
 
         {/* Divider */}
         <div className="relative flex py-2 items-center mb-6">
