@@ -31,7 +31,11 @@ import {
   Brain,
   Award,
   ChevronRight,
-  Lightbulb
+  Lightbulb,
+  Lock,
+  KeyRound,
+  LogOut,
+  ShieldCheck
 } from 'lucide-react';
 
 // Register Chart.js modules
@@ -58,12 +62,38 @@ interface AdminDashboardProps {
 }
 
 export default function AdminDashboard({ onBack }: AdminDashboardProps) {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return sessionStorage.getItem('admin_authenticated') === 'true';
+  });
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'individual'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUid, setSelectedUid] = useState<string>('');
   const [sortBy, setSortBy] = useState<'words' | 'accuracy' | 'maxWords' | 'aiScore' | 'wins'>('words');
+
+  // Handle PIN submission
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === '1234') {
+      sessionStorage.setItem('admin_authenticated', 'true');
+      setIsAuthenticated(true);
+      setPasswordError('');
+    } else {
+      setPasswordError('รหัสผ่านไม่ถูกต้อง (กรุณากรอกรหัสผ่าน 4 หลักให้ถูกต้อง)');
+      setPasswordInput('');
+    }
+  };
+
+  // Handle logout / re-lock
+  const handleLogout = () => {
+    sessionStorage.removeItem('admin_authenticated');
+    setIsAuthenticated(false);
+    setPasswordInput('');
+  };
 
   // Load user data
   const fetchData = async () => {
@@ -82,8 +112,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isAuthenticated) {
+      fetchData();
+    }
+  }, [isAuthenticated]);
 
   // Filter and sort users
   const filteredUsers = useMemo(() => {
@@ -526,6 +558,68 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     return notes;
   }, [selectedUser]);
 
+  // PIN Passcode Gate (Password: 1234)
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background text-main flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-sm bg-surface border border-border p-8 rounded-[28px] shadow-2xl flex flex-col items-center animate-fade-in text-center">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mb-4 shadow-inner">
+            <Lock className="w-8 h-8" />
+          </div>
+          
+          <h2 className="text-2xl font-black text-main tracking-tight mb-1">
+            เข้าสู่ระบบแดชบอร์ด
+          </h2>
+          <p className="text-xs text-muted font-medium mb-6">
+            กรุณากรอกรหัสผ่าน PIN 4 หลัก เพื่อเข้าถึงข้อมูลสถิติ
+          </p>
+
+          <form onSubmit={handlePasswordSubmit} className="w-full space-y-4">
+            <div>
+              <div className="relative">
+                <KeyRound className="w-5 h-5 text-muted absolute left-4 top-1/2 -translate-y-1/2" />
+                <input
+                  type="password"
+                  value={passwordInput}
+                  onChange={(e) => {
+                    setPasswordInput(e.target.value);
+                    if (passwordError) setPasswordError('');
+                  }}
+                  placeholder="กรอกรหัสผ่าน 4 หลัก"
+                  maxLength={10}
+                  autoFocus
+                  className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-background border border-border text-center text-xl font-mono tracking-widest text-main focus:ring-2 focus:ring-primary outline-none transition-all placeholder:text-muted/50 placeholder:tracking-normal placeholder:font-sans placeholder:text-sm"
+                />
+              </div>
+              {passwordError && (
+                <div className="text-danger text-xs font-bold mt-2">
+                  {passwordError}
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3.5 rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-sm shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              เข้าสู่ระบบ
+            </button>
+
+            <button
+              type="button"
+              onClick={onBack}
+              className="w-full py-3 rounded-2xl border border-border text-muted hover:text-main text-xs font-bold transition-colors flex items-center justify-center gap-2"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              กลับสู่หน้าเกม
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background text-main p-4 sm:p-8 flex flex-col max-w-7xl mx-auto animate-fade-in">
       {/* Top Header */}
@@ -569,6 +663,14 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
           >
             <Download className="w-4 h-4" />
             ส่งออก CSV
+          </button>
+          <button
+            onClick={handleLogout}
+            className="px-3 py-2.5 rounded-xl bg-surface hover:bg-danger/10 hover:text-danger text-muted border border-border text-xs sm:text-sm font-bold flex items-center gap-1.5 transition-all active:scale-95"
+            title="ล็อกหน้าแดชบอร์ด / ออกจากระบบแอดมิน"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">ล็อกระบบ</span>
           </button>
         </div>
       </div>
