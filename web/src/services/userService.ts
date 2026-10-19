@@ -3,6 +3,17 @@ import { updateProfile } from 'firebase/auth';
 import { db, auth } from './firebase';
 import { useGameStore, type Player } from '../store/gameStore';
 
+export interface HistoryPoint {
+  matchIndex: number;
+  timestamp: number;
+  dateStr: string;
+  wordsInMatch: number;
+  speechAccuracy: number;
+  firstPassRate: number;
+  aiScore: number;
+  won: boolean;
+}
+
 export interface UserProfile {
   uid: string;
   name: string;
@@ -28,6 +39,9 @@ export interface UserProfile {
   challengesWon?: number;
   totalAiScore?: number;
   aiJudgedCount?: number;
+
+  // 4. ข้อมูลประวัติพัฒนาการตามช่วงเวลา (Time-series progression)
+  history?: HistoryPoint[];
 }
 
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
@@ -167,10 +181,38 @@ export const recordGameFinished = async (
       const curMax = userData.maxWordsInMatch || 0;
       const newMax = Math.max(curMax, wordsInMatch);
 
+      // Build time-series match snapshot
+      const curHistory: HistoryPoint[] = Array.isArray(userData.history) ? userData.history : [];
+      const newGamesPlayed = (userData.gamesPlayed || 0) + 1;
+      const userAttempts = userData.speechAttempts || 0;
+      const userSuccesses = userData.speechSuccesses || 0;
+      const speechAcc = userAttempts > 0 ? Math.round((userSuccesses / userAttempts) * 100) : 75;
+      const userTurns = userData.speechTurns || 0;
+      const userFirst = userData.firstPassCount || 0;
+      const firstPass = userTurns > 0 ? Math.round((userFirst / userTurns) * 100) : 70;
+      const userAiScore = userData.aiJudgedCount > 0 ? +((userData.totalAiScore || 0) / userData.aiJudgedCount).toFixed(1) : 4.0;
+
+      const now = new Date();
+      const dateStr = `${now.getDate()}/${now.getMonth() + 1} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+      const newPoint: HistoryPoint = {
+        matchIndex: newGamesPlayed,
+        timestamp: Date.now(),
+        dateStr,
+        wordsInMatch,
+        speechAccuracy: speechAcc,
+        firstPassRate: firstPass,
+        aiScore: userAiScore,
+        won: isWinner
+      };
+
+      const updatedHistory = [...curHistory.slice(-49), newPoint];
+
       await updateDoc(userRef, {
         gamesPlayed: increment(1),
         totalMatchWords: increment(wordsInMatch),
         maxWordsInMatch: newMax,
+        history: updatedHistory,
         ...(isWinner ? { wins: increment(1) } : {})
       }).catch(async (e: any) => {
         if (e.code === 'not-found') {
@@ -180,7 +222,8 @@ export const recordGameFinished = async (
             gamesPlayed: 1,
             wins: isWinner ? 1 : 0,
             totalMatchWords: wordsInMatch,
-            maxWordsInMatch: wordsInMatch
+            maxWordsInMatch: wordsInMatch,
+            history: [newPoint]
           }, { merge: true });
         }
       });
@@ -230,7 +273,8 @@ export const getGlobalLeaderboard = async (): Promise<UserProfile[]> => {
         challengesFaced: data.challengesFaced || 0,
         challengesWon: data.challengesWon || 0,
         totalAiScore: data.totalAiScore || 0,
-        aiJudgedCount: data.aiJudgedCount || 0
+        aiJudgedCount: data.aiJudgedCount || 0,
+        history: data.history || []
       });
     });
 
