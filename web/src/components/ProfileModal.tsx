@@ -32,6 +32,8 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const myEmail = useGameStore(state => state.myEmail);
   const myWins = useGameStore(state => state.myWins);
   const myGamesPlayed = useGameStore(state => state.myGamesPlayed);
+  const myWordCount = useGameStore(state => state.myWordCount);
+  const myTitle = useGameStore(state => state.myTitle);
   const resetStore = useGameStore(state => state.reset);
 
   const [name, setName] = useState(myName || '');
@@ -166,20 +168,23 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
             <div className="flex-1 text-center sm:text-left space-y-1">
               <div className="text-xl font-bold text-main">{name || 'ยังไม่ได้ตั้งชื่อ'}</div>
+              <div className="inline-block text-xs font-bold text-warning bg-warning/15 px-2.5 py-0.5 rounded-full">
+                🎖️ {myTitle || 'ผู้ฝึกต่อคำ'}
+              </div>
               {myEmail && (
-                <div className="text-xs text-muted font-medium flex items-center justify-center sm:justify-start gap-1">
+                <div className="text-xs text-muted font-medium flex items-center justify-center sm:justify-start gap-1 pt-0.5">
                   <Mail className="w-3.5 h-3.5" />
                   {myEmail}
                 </div>
               )}
-              <div className="text-xs text-primary font-bold pt-1">
+              <div className="text-xs text-primary font-bold pt-0.5">
                 {selectedPhoto.startsWith('data:') ? 'รูปที่คุณอัปโหลดเอง' : 'อวตารของระบบ'}
               </div>
             </div>
           </div>
 
           {/* Stats Badges */}
-          <div className="grid grid-cols-3 gap-3 bg-surface p-4 rounded-[20px] border border-border text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-surface p-4 rounded-[20px] border border-border text-center">
             <div className="bg-background/50 p-2.5 rounded-[14px] border border-border/50">
               <div className="text-xs text-muted font-bold mb-1">🏆 ชนะ</div>
               <div className="text-lg font-black text-warning">{myWins} ครั้ง</div>
@@ -193,6 +198,10 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               <div className="text-lg font-black text-primary">
                 {myGamesPlayed ? Math.round((myWins / myGamesPlayed) * 100) : 0}%
               </div>
+            </div>
+            <div className="bg-background/50 p-2.5 rounded-[14px] border border-border/50">
+              <div className="text-xs text-muted font-bold mb-1">📖 คลังศัพท์</div>
+              <div className="text-lg font-black text-success">{myWordCount} คำ</div>
             </div>
           </div>
 

@@ -6,10 +6,12 @@ import { useChallengeEngine } from '../host/challengeEngine';
 import { checkWordWithAPI } from '../services/apiClient';
 import { leaveRoom } from '../services/roomService';
 import { recordGameFinished } from '../services/userService';
+import { addWordToDictionary, type Achievement } from '../services/achievementService';
 import ScoreboardModal from '../components/ScoreboardModal';
+import DictionaryModal from '../components/DictionaryModal';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { Trophy } from 'lucide-react';
+import { Trophy, BookOpen, Sparkles } from 'lucide-react';
 
 export default function Game() {
   const roomId = useGameStore(state => state.roomId);
@@ -23,11 +25,14 @@ export default function Game() {
   const words = useGameStore(state => state.words);
   const challenge = useGameStore(state => state.challenge);
   const status = useGameStore(state => state.status);
+  const setMyWordStats = useGameStore(state => state.setMyWordStats);
   
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [feedback, setFeedback] = useState<string>('');
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
   const [isScoreboardOpen, setIsScoreboardOpen] = useState<boolean>(false);
+  const [isDictionaryOpen, setIsDictionaryOpen] = useState<boolean>(false);
+  const [unlockedAchievement, setUnlockedAchievement] = useState<Achievement | null>(null);
   
   // Enable speech only if it's my turn
   const isMyTurn = myUid === turnUid;
@@ -117,6 +122,22 @@ export default function Game() {
     await updateDoc(doc(db, `rooms/${roomId}/players`, turnUid), {
       score: (players[turnUid]?.score || 0) + 1
     }).catch(() => {});
+
+    // Save word to player's personal dictionary & check achievements
+    if (myUid) {
+      addWordToDictionary(myUid, word).then((res) => {
+        if (res.isNewWord) {
+          setMyWordStats(res.newCount, res.newTitle);
+          updateDoc(doc(db, `rooms/${roomId}/players`, myUid), {
+            wordCount: res.newCount,
+            title: res.newTitle
+          }).catch(() => {});
+        }
+        if (res.unlockedAchievement) {
+          setUnlockedAchievement(res.unlockedAchievement);
+        }
+      }).catch((e) => console.error('Dictionary update error:', e));
+    }
   };
 
   const handleChallenge = async () => {
@@ -267,13 +288,24 @@ export default function Game() {
           ออกจากห้อง
         </button>
 
-        <button 
-          onClick={() => setIsScoreboardOpen(true)}
-          className="pointer-events-auto text-main hover:text-primary font-bold transition-all bg-background/80 hover:bg-surface px-4 py-2 rounded-full backdrop-blur-sm border border-border flex items-center gap-2 shadow-sm text-sm"
-        >
-          <Trophy className="w-4 h-4 text-warning" />
-          <span>กระดานคะแนน</span>
-        </button>
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <button 
+            onClick={() => setIsDictionaryOpen(true)}
+            className="text-main hover:text-primary font-bold transition-all bg-background/80 hover:bg-surface px-3.5 py-2 rounded-full backdrop-blur-sm border border-border flex items-center gap-2 shadow-sm text-sm"
+            title="พจนานุกรมและฉายา"
+          >
+            <BookOpen className="w-4 h-4 text-primary" />
+            <span className="hidden sm:inline">คลังศัพท์</span>
+          </button>
+
+          <button 
+            onClick={() => setIsScoreboardOpen(true)}
+            className="text-main hover:text-primary font-bold transition-all bg-background/80 hover:bg-surface px-3.5 py-2 rounded-full backdrop-blur-sm border border-border flex items-center gap-2 shadow-sm text-sm"
+          >
+            <Trophy className="w-4 h-4 text-warning" />
+            <span className="hidden sm:inline">กระดานคะแนน</span>
+          </button>
+        </div>
       </div>
 
       {renderDeadOrFinishedOverlay()}
@@ -406,7 +438,10 @@ export default function Game() {
                                   <span className="font-bold text-[10px] text-primary">{p.name.charAt(0)}</span>
                                 )}
                              </div>
-                             <span className="font-black text-main text-xs truncate">{p.name}</span>
+                             <div className="min-w-0 flex-1">
+                                <div className="font-black text-main text-xs truncate">{p.name}</div>
+                                <div className="text-[10px] text-primary font-bold truncate">🎖️ {p.title || 'ผู้ฝึกต่อคำ'}</div>
+                             </div>
                           </div>
 
                           <div className="space-y-1 text-[11px]">
@@ -421,6 +456,10 @@ export default function Game() {
                              <div className="flex justify-between items-center">
                                 <span className="text-muted font-medium">📊 Win Rate:</span>
                                 <span className="font-black text-primary">{winRate}%</span>
+                             </div>
+                             <div className="flex justify-between items-center">
+                                <span className="text-muted font-medium">📖 คลังศัพท์:</span>
+                                <span className="font-bold text-primary">{p.wordCount || 0} คำ</span>
                              </div>
                              <div className="flex justify-between items-center border-t border-border/50 pt-1 mt-1">
                                 <span className="text-muted font-medium">💬 ต่อได้รอบนี้:</span>
@@ -539,6 +578,40 @@ export default function Game() {
         players={players} 
         myUid={myUid} 
       />
+
+      {/* Dictionary & Titles Modal */}
+      <DictionaryModal
+        isOpen={isDictionaryOpen}
+        onClose={() => setIsDictionaryOpen(false)}
+      />
+
+      {/* Achievement Unlocked Celebration Popup */}
+      {unlockedAchievement && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in pointer-events-auto">
+          <div className="bg-elevated border-2 border-warning/60 p-6 md:p-8 rounded-[28px] max-w-md w-full text-center shadow-2xl relative overflow-hidden animate-scale-up">
+            <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-warning via-primary to-warning animate-pulse" />
+            <div className="text-5xl md:text-6xl mb-3 animate-bounce">🏆</div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-warning/20 text-warning text-xs font-black rounded-full mb-3 uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5" /> ปลดล็อคความสำเร็จใหม่!
+            </div>
+            <h3 className="text-2xl md:text-3xl font-black text-main mb-2">
+              สะสมคำครบ {unlockedAchievement.threshold.toLocaleString()} คำ!
+            </h3>
+            <p className="text-sm text-muted mb-4">คุณได้รับฉายาใหม่สุดเท่</p>
+            <div className="inline-block px-5 py-2.5 bg-primary/20 border border-primary/40 rounded-2xl text-xl font-black text-primary mb-6 shadow-inner">
+              🎖️ {unlockedAchievement.title}
+            </div>
+            <div>
+              <button
+                onClick={() => setUnlockedAchievement(null)}
+                className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg active:scale-95"
+              >
+                สุดยอดเลย! 🎉
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

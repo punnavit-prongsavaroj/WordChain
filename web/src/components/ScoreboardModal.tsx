@@ -84,9 +84,12 @@ export default function ScoreboardModal({ isOpen, onClose, players, myUid }: Sco
 
                   {/* Name & Match Score */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-main text-base truncate">{p.name}</span>
                       {isMe && <span className="text-primary text-xs font-bold">(คุณ)</span>}
+                      <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-bold">
+                        🎖️ {p.title || 'ผู้ฝึกต่อคำ'}
+                      </span>
                       {!p.alive && !p.isSpectator && (
                         <span className="text-[10px] bg-danger/20 text-danger px-2 py-0.5 rounded-full font-bold">ตกรอบ</span>
                       )}
@@ -95,10 +98,14 @@ export default function ScoreboardModal({ isOpen, onClose, players, myUid }: Sco
                       )}
                     </div>
                     
-                    <div className="text-xs text-muted flex items-center gap-2 mt-0.5">
+                    <div className="text-xs text-muted flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className="text-success font-bold flex items-center gap-1">
                         <Flame className="w-3.5 h-3.5" />
                         ต่อได้ {p.score || 0} คำ
+                      </span>
+                      <span>•</span>
+                      <span className="text-primary font-bold">
+                        📖 คลังศัพท์ {p.wordCount || 0} คำ
                       </span>
                     </div>
                   </div>

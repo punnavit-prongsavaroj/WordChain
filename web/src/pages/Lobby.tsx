@@ -105,6 +105,9 @@ export default function Lobby() {
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-main text-lg truncate flex items-center gap-2">
                         {p.name} {p.uid === myUid && <span className="text-muted text-sm font-normal">(คุณ)</span>}
+                        <span className="text-[11px] bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-bold">
+                          🎖️ {p.title || 'ผู้ฝึกต่อคำ'}
+                        </span>
                       </div>
                       <div className="text-xs text-muted font-medium flex items-center gap-2 mt-0.5">
                         <span className="text-warning font-bold">🏆 {p.wins || 0} ชนะ</span>
@@ -112,8 +115,10 @@ export default function Lobby() {
                         <span>{p.gamesPlayed || 0} เกม</span>
                         <span>•</span>
                         <span className="text-primary font-bold">
-                          {p.gamesPlayed ? Math.round(((p.wins || 0) / p.gamesPlayed) * 100) : 0}% Win Rate
+                          {p.gamesPlayed ? Math.round(((p.wins || 0) / p.gamesPlayed) * 100) : 0}% WR
                         </span>
+                        <span>•</span>
+                        <span className="text-success font-bold">📖 {p.wordCount || 0} คำ</span>
                       </div>
                     </div>
                     {p.uid === hostUid && (

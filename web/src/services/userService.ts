@@ -10,6 +10,8 @@ export interface UserProfile {
   photoURL?: string;
   wins?: number;
   gamesPlayed?: number;
+  title?: string;
+  wordCount?: number;
 }
 
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
@@ -128,7 +130,9 @@ export const getGlobalLeaderboard = async (limitCount = 20): Promise<UserProfile
         email: data.email || '',
         photoURL: data.photoURL || '',
         wins: data.wins || 0,
-        gamesPlayed: data.gamesPlayed || 0
+        gamesPlayed: data.gamesPlayed || 0,
+        title: data.title || 'ผู้ฝึกต่อคำ',
+        wordCount: data.wordCount || 0
       });
     });
 

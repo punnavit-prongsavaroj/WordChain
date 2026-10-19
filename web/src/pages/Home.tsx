@@ -5,13 +5,15 @@ import { checkWordWithAPI } from '../services/apiClient';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { getGlobalLeaderboard, type UserProfile } from '../services/userService';
 import ProfileModal from '../components/ProfileModal';
-import { Mic, User, Edit3, Sparkles, Trophy, RotateCcw } from 'lucide-react';
+import DictionaryModal from '../components/DictionaryModal';
+import { Mic, User, Edit3, Sparkles, Trophy, RotateCcw, BookOpen } from 'lucide-react';
 
 export default function Home() {
   const [code, setCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isDictionaryOpen, setIsDictionaryOpen] = useState(false);
   
   // Leaderboard State
   const [leaderboard, setLeaderboard] = useState<UserProfile[]>([]);
@@ -28,6 +30,8 @@ export default function Home() {
   const myEmail = useGameStore(state => state.myEmail);
   const myWins = useGameStore(state => state.myWins);
   const myGamesPlayed = useGameStore(state => state.myGamesPlayed);
+  const myWordCount = useGameStore(state => state.myWordCount);
+  const myTitle = useGameStore(state => state.myTitle);
 
   const loadLeaderboard = async () => {
     setIsLeaderboardLoading(true);
@@ -265,10 +269,19 @@ export default function Home() {
                             {u.name}
                             {isMe && <span className="text-primary text-[10px] font-bold px-1.5 py-0.5 bg-primary/20 rounded-md">(คุณ)</span>}
                           </div>
+                          <div className="text-[11px] text-primary font-bold truncate">
+                            🎖️ {u.title || 'ผู้ฝึกต่อคำ'}
+                          </div>
                           <div className="text-[11px] text-muted flex items-center gap-1.5 mt-0.5">
                             <span>{u.gamesPlayed || 0} เกม</span>
                             <span>•</span>
-                            <span className="text-primary font-bold">{winRate}% Win Rate</span>
+                            <span className="text-primary font-bold">{winRate}% WR</span>
+                            {u.wordCount !== undefined && (
+                              <>
+                                <span>•</span>
+                                <span className="text-main font-semibold">📖 {u.wordCount} คำ</span>
+                              </>
+                            )}
                           </div>
                         </div>
 
@@ -308,9 +321,14 @@ export default function Home() {
               </div>
 
               <div className="flex-1 text-center sm:text-left space-y-1">
-                <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-bold px-2.5 py-0.5 rounded-full mb-1">
-                  <Sparkles className="w-3 h-3" />
-                  พร้อมเล่น
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 mb-1">
+                  <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-bold px-2.5 py-0.5 rounded-full">
+                    <Sparkles className="w-3 h-3" />
+                    พร้อมเล่น
+                  </div>
+                  <div className="inline-flex items-center gap-1 bg-warning/15 text-warning text-xs font-bold px-2.5 py-0.5 rounded-full">
+                    🎖️ {myTitle || 'ผู้ฝึกต่อคำ'}
+                  </div>
                 </div>
                 <h3 className="text-2xl font-black text-main truncate">
                   {myName || 'ผู้เล่น'}
@@ -322,7 +340,7 @@ export default function Home() {
                 )}
 
                 {/* Stats Row */}
-                <div className="grid grid-cols-3 gap-2 py-2 max-w-xs mx-auto sm:mx-0">
+                <div className="grid grid-cols-4 gap-1.5 py-2 max-w-sm mx-auto sm:mx-0">
                   <div className="bg-surface/80 border border-border p-2 rounded-xl text-center">
                     <div className="text-[10px] text-muted font-bold">🏆 ชนะ</div>
                     <div className="text-sm font-black text-warning">{myWins}</div>
@@ -332,20 +350,31 @@ export default function Home() {
                     <div className="text-sm font-black text-main">{myGamesPlayed}</div>
                   </div>
                   <div className="bg-surface/80 border border-border p-2 rounded-xl text-center">
-                    <div className="text-[10px] text-muted font-bold">📊 Win Rate</div>
+                    <div className="text-[10px] text-muted font-bold">📊 Win%</div>
                     <div className="text-sm font-black text-primary">
                       {myGamesPlayed ? Math.round((myWins / myGamesPlayed) * 100) : 0}%
                     </div>
                   </div>
+                  <div className="bg-surface/80 border border-border p-2 rounded-xl text-center">
+                    <div className="text-[10px] text-muted font-bold">📖 คลังศัพท์</div>
+                    <div className="text-sm font-black text-success">{myWordCount}</div>
+                  </div>
                 </div>
 
-                <div className="pt-1">
+                <div className="pt-1 flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                  <button
+                    onClick={() => setIsDictionaryOpen(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-success bg-surface hover:bg-success/10 border border-success/30 px-3 py-2 rounded-xl transition-colors"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    คลังศัพท์ & ฉายา
+                  </button>
                   <button
                     onClick={() => setIsProfileOpen(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-surface hover:bg-primary/10 border border-primary/20 px-3.5 py-2 rounded-xl transition-colors"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-surface hover:bg-primary/10 border border-primary/20 px-3 py-2 rounded-xl transition-colors"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
-                    เปลี่ยนชื่อ / รูปโปรไฟล์
+                    แก้ไขโปรไฟล์
                   </button>
                 </div>
               </div>
@@ -407,6 +436,12 @@ export default function Home() {
       <ProfileModal 
         isOpen={isProfileOpen} 
         onClose={() => setIsProfileOpen(false)} 
+      />
+
+      {/* Dictionary & Titles Modal */}
+      <DictionaryModal
+        isOpen={isDictionaryOpen}
+        onClose={() => setIsDictionaryOpen(false)}
       />
     </div>
   );

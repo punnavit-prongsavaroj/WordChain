@@ -3,6 +3,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './services/firebase';
 import { useGameStore } from './store/gameStore';
 import { getUserProfile } from './services/userService';
+import { getHighestTitle, DEFAULT_TITLE } from './services/achievementService';
 import Auth from './pages/Auth';
 import Home from './pages/Home';
 import Lobby from './pages/Lobby';
@@ -19,6 +20,7 @@ function App() {
   const setMyPhotoURL = useGameStore(state => state.setMyPhotoURL);
   const setMyEmail = useGameStore(state => state.setMyEmail);
   const setMyStats = useGameStore(state => state.setMyStats);
+  const setMyWordStats = useGameStore(state => state.setMyWordStats);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -32,6 +34,7 @@ function App() {
         if (profile) {
           setMyName(profile.name || user.displayName || 'ผู้เล่น');
           setMyStats(profile.wins || 0, profile.gamesPlayed || 0);
+          setMyWordStats(profile.wordCount || 0, profile.title || getHighestTitle(profile.wordCount || 0));
           if (profile.photoURL) {
             setMyPhotoURL(profile.photoURL);
           } else if (user.photoURL) {
@@ -40,6 +43,7 @@ function App() {
         } else {
           setMyName(user.displayName || 'ผู้เล่น');
           setMyStats(0, 0);
+          setMyWordStats(0, DEFAULT_TITLE);
           if (user.photoURL) setMyPhotoURL(user.photoURL);
         }
       } else {
@@ -48,12 +52,13 @@ function App() {
         setMyName(null);
         setMyPhotoURL(null);
         setMyEmail(null);
+        setMyWordStats(0, DEFAULT_TITLE);
       }
       setIsAuthReady(true);
     });
 
     return () => unsubscribe();
-  }, [setMyUid, setMyName, setMyPhotoURL, setMyEmail, setMyStats]);
+  }, [setMyUid, setMyName, setMyPhotoURL, setMyEmail, setMyStats, setMyWordStats]);
 
   useEffect(() => {
     if (roomId && isAuthReady && currentUser) {

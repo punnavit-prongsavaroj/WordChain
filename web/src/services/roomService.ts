@@ -32,7 +32,9 @@ export const createRoom = async (hostUid: string, hostName: string, photoURL?: s
     order: 0,
     wins: userProfile?.wins || 0,
     gamesPlayed: userProfile?.gamesPlayed || 0,
-    score: 0
+    score: 0,
+    title: userProfile?.title || 'ผู้ฝึกต่อคำ',
+    wordCount: userProfile?.wordCount || 0
   });
 
   localStorage.setItem('wordChainRoomId', roomId);
@@ -70,7 +72,9 @@ export const joinRoomByCode = async (code: string, uid: string, name: string, ph
     order,
     wins: userProfile?.wins || 0,
     gamesPlayed: userProfile?.gamesPlayed || 0,
-    score: 0
+    score: 0,
+    title: userProfile?.title || 'ผู้ฝึกต่อคำ',
+    wordCount: userProfile?.wordCount || 0
   });
 
   localStorage.setItem('wordChainRoomId', roomId);
@@ -113,6 +117,8 @@ export const subscribeToRoom = (roomId: string) => {
         wins: data.wins || 0,
         gamesPlayed: data.gamesPlayed || 0,
         score: data.score || 0,
+        title: data.title || 'ผู้ฝึกต่อคำ',
+        wordCount: data.wordCount || 0,
         ...data 
       } as Player;
     });
