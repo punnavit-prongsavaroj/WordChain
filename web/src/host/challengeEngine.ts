@@ -99,7 +99,7 @@ export function useChallengeEngine() {
                    alive: false
                });
                nextTurnUid = challenge.nextTurnUid;
-               nextTurnTime = challenge.resumeTime;
+               nextTurnTime = Date.now() + 15000;
            }
 
            // If the assigned nextTurnUid is dead (e.g. they were the challenger or speaker who just died),

@@ -62,8 +62,7 @@ export default function Game() {
           await handleTurnSuccess(result.syllables, text);
           setFeedback('');
         } else {
-          setFeedback(`คำว่า "${text}" ไม่ผ่าน: ${result.reason === 'is_sentence' ? 'เป็นประโยค' : result.reason === 'not_a_noun' ? 'ไม่ใช่คำนาม' : result.reason}`);
-          await handleTurnDeath();
+          setFeedback(`คำว่า "${text}" ไม่ผ่าน: ${result.reason === 'is_sentence' ? 'เป็นประโยค' : result.reason === 'not_a_noun' ? 'ไม่ใช่คำนาม' : result.reason} (กดไมค์พูดใหม่ได้เลย)`);
         }
       } catch (err) {
         setFeedback(`ตรวจสอบไม่สำเร็จ ลองพูดใหม่ครับ`);
@@ -72,33 +71,6 @@ export default function Game() {
     }
   });
 
-  const handleTurnDeath = async () => {
-    if (!roomId || !turnUid) return;
-    const sortedPlayers = Object.values(players).sort((a, b) => a.order - b.order);
-    const currentIndex = sortedPlayers.findIndex(p => p.uid === turnUid);
-    
-    // Check if there will be any alive players left besides this one
-    const aliveCount = sortedPlayers.filter(p => p.alive && !p.isSpectator).length;
-    
-    let updates: any = {
-      [`players.${myUid}.alive`]: false
-    };
-
-    if (aliveCount <= 2) {
-      // 1 or fewer players left, game over
-      updates.status = 'finished';
-    } else {
-      let nextIndex = (currentIndex + 1) % sortedPlayers.length;
-      while (!sortedPlayers[nextIndex].alive || sortedPlayers[nextIndex].uid === myUid) {
-          nextIndex = (nextIndex + 1) % sortedPlayers.length;
-      }
-      updates.turnUid = sortedPlayers[nextIndex].uid;
-      updates.turnEndTime = Date.now() + 15000;
-    }
-
-    await updateDoc(doc(db, 'rooms', roomId), updates);
-  };
-
   const handleTurnSuccess = async (newSyllables: string[], word: string) => {
     if (!roomId || !turnUid) return;
     
@@ -106,8 +78,10 @@ export default function Game() {
     const sortedPlayers = Object.values(players).sort((a, b) => a.order - b.order);
     const currentIndex = sortedPlayers.findIndex(p => p.uid === turnUid);
     let nextIndex = (currentIndex + 1) % sortedPlayers.length;
-    while (!sortedPlayers[nextIndex].alive) {
+    let loopCount = 0;
+    while ((!sortedPlayers[nextIndex].alive || sortedPlayers[nextIndex].isSpectator) && loopCount < sortedPlayers.length) {
         nextIndex = (nextIndex + 1) % sortedPlayers.length;
+        loopCount++;
     }
     const nextPlayerUid = sortedPlayers[nextIndex].uid;
 
@@ -178,17 +152,30 @@ export default function Game() {
 
   // Timer Countdown Display
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (status === 'playing' && turnEndTime) {
-        const remaining = Math.max(0, Math.ceil((turnEndTime - Date.now()) / 1000));
-        setTimeLeft(remaining);
-      } else if (status === 'challenge' && challenge?.endTime) {
+    if (status === 'playing' && turnUid) {
+      const turnStart = Date.now();
+      setTimeLeft(15);
+
+      const interval = setInterval(() => {
+        const now = Date.now();
+        if (turnEndTime && turnEndTime > now) {
+          const serverRemaining = Math.max(0, Math.ceil((turnEndTime - now) / 1000));
+          setTimeLeft(serverRemaining);
+        } else {
+          const localElapsed = (now - turnStart) / 1000;
+          const localRemaining = Math.max(0, Math.ceil(15 - localElapsed));
+          setTimeLeft(localRemaining);
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    } else if (status === 'challenge' && challenge?.endTime) {
+      const interval = setInterval(() => {
         const remaining = Math.max(0, Math.ceil((challenge.endTime - Date.now()) / 1000));
         setTimeLeft(remaining);
-      }
-    }, 100);
-    return () => clearInterval(interval);
-  }, [turnEndTime, status, challenge]);
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [turnUid, turnEndTime, status, challenge]);
 
   const sortedPlayers = Object.values(players).sort((a, b) => a.order - b.order);
   const myPlayer = players[myUid || ''];
