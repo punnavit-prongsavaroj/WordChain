@@ -5,7 +5,7 @@ import { useHostLoop } from '../host/turnEngine';
 import { useChallengeEngine } from '../host/challengeEngine';
 import { checkWordWithAPI } from '../services/apiClient';
 import { leaveRoom } from '../services/roomService';
-import { recordGameFinished } from '../services/userService';
+import { recordGameFinished, recordSpeechTelemetry } from '../services/userService';
 import { addWordToDictionary, type Achievement } from '../services/achievementService';
 import ScoreboardModal from '../components/ScoreboardModal';
 import DictionaryModal from '../components/DictionaryModal';
@@ -30,12 +30,20 @@ export default function Game() {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [feedback, setFeedback] = useState<string>('');
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [turnAttempts, setTurnAttempts] = useState<number>(0);
   const [isScoreboardOpen, setIsScoreboardOpen] = useState<boolean>(false);
   const [isDictionaryOpen, setIsDictionaryOpen] = useState<boolean>(false);
   const [unlockedAchievement, setUnlockedAchievement] = useState<Achievement | null>(null);
   
   // Enable speech only if it's my turn
   const isMyTurn = myUid === turnUid;
+
+  // Reset attempt count when it's our turn
+  useEffect(() => {
+    if (turnUid === myUid) {
+      setTurnAttempts(0);
+    }
+  }, [turnUid, myUid]);
 
   // Auto record match stats when game finishes
   useEffect(() => {
@@ -54,17 +62,37 @@ export default function Game() {
     active: isMyTurn && status === 'playing' && isSpeaking,
     onFinalResult: async (text) => {
       if (!isMyTurn || status !== 'playing') return;
+      const currentAttempt = turnAttempts + 1;
+      setTurnAttempts(currentAttempt);
+
       setFeedback(`กำลังตรวจสอบ: "${text}"...`);
       try {
         const result = await checkWordWithAPI(text, usedSyllables);
         if (result.valid) {
           // Success! Next player's turn
+          if (myUid) {
+            recordSpeechTelemetry(myUid, {
+              attemptSuccess: true,
+              isFirstAttempt: currentAttempt === 1,
+              turnCompleted: true
+            });
+          }
           await handleTurnSuccess(result.syllables, text);
           setFeedback('');
         } else {
+          if (myUid) {
+            recordSpeechTelemetry(myUid, {
+              attemptSuccess: false
+            });
+          }
           setFeedback(`คำว่า "${text}" ไม่ผ่าน: ${result.reason === 'is_sentence' ? 'เป็นประโยค' : result.reason === 'not_a_noun' ? 'ไม่ใช่คำนาม' : result.reason} (กดไมค์พูดใหม่ได้เลย)`);
         }
       } catch (err) {
+        if (myUid) {
+          recordSpeechTelemetry(myUid, {
+            attemptSuccess: false
+          });
+        }
         setFeedback(`ตรวจสอบไม่สำเร็จ ลองพูดใหม่ครับ`);
       }
       setIsSpeaking(false);
@@ -343,7 +371,14 @@ export default function Game() {
                     <span className="text-danger font-bold flex items-center gap-2">{challenge.result?.failCount} เสียง <span className="text-3xl">❌</span></span>
                  </div>
                  <div className="p-4 bg-surface/50 border border-border rounded-[16px] mb-6 text-sm text-left">
-                    <strong className="text-primary block mb-1">ความเห็นจาก AI (0.5 เสียง): </strong> 
+                    <div className="flex items-center justify-between mb-1">
+                      <strong className="text-primary block">ความเห็นจาก AI (0.5 เสียง): </strong>
+                      {challenge.aiVote?.semanticScore && (
+                        <span className="text-xs font-bold bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full">
+                          ความเชื่อมโยง: {challenge.aiVote.semanticScore}/5 ⭐
+                        </span>
+                      )}
+                    </div>
                     <span className="text-main font-bold">{challenge.aiVote?.pass ? '✅ ให้ผ่าน' : '❌ ปัดตก'}</span> <br/>
                     <span className="text-muted mt-1 block leading-relaxed">{challenge.aiVote?.reason}</span>
                  </div>

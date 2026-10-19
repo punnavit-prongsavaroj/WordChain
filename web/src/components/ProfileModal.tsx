@@ -1,9 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { updateCurrentProfile } from '../services/userService';
+import { updateCurrentProfile, getUserProfile, type UserProfile } from '../services/userService';
 import { auth } from '../services/firebase';
 import { signOut } from 'firebase/auth';
-import { X, Check, Upload, User, Sparkles, RotateCcw, LogOut, Mail, Edit3, Loader2 } from 'lucide-react';
+import { X, Check, Upload, User, Sparkles, RotateCcw, LogOut, Mail, Edit3, Loader2, Brain, Mic, BookOpen } from 'lucide-react';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -41,8 +41,40 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [profileData, setProfileData] = useState<UserProfile | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen && auth.currentUser?.uid) {
+      getUserProfile(auth.currentUser.uid).then(data => {
+        if (data) setProfileData(data);
+      });
+    }
+  }, [isOpen]);
+
+  // Skill 1: Pronunciation
+  const speechAttempts = profileData?.speechAttempts || 0;
+  const speechSuccesses = profileData?.speechSuccesses || 0;
+  const firstPassCount = profileData?.firstPassCount || 0;
+  const speechTurns = profileData?.speechTurns || 0;
+  const speechAccuracy = speechAttempts > 0 ? Math.round((speechSuccesses / speechAttempts) * 100) : 0;
+  const firstPassRate = speechTurns > 0 ? Math.round((firstPassCount / speechTurns) * 100) : 0;
+
+  // Skill 2: Vocabulary Recall & Depth
+  const maxWords = profileData?.maxWordsInMatch || 0;
+  const totalWords = profileData?.totalMatchWords || 0;
+  const games = profileData?.gamesPlayed || myGamesPlayed || 0;
+  const avgWordsPerGame = games > 0 ? (totalWords / games).toFixed(1) : '0';
+  const vocabSize = profileData?.wordCount || myWordCount || 0;
+
+  // Skill 3: Semantic Association
+  const challengesFaced = profileData?.challengesFaced || 0;
+  const challengesWon = profileData?.challengesWon || 0;
+  const totalAiScore = profileData?.totalAiScore || 0;
+  const aiJudgedCount = profileData?.aiJudgedCount || 0;
+  const challengeDefenseRate = challengesFaced > 0 ? Math.round((challengesWon / challengesFaced) * 100) : 0;
+  const aiAverageScore = aiJudgedCount > 0 ? (totalAiScore / aiJudgedCount).toFixed(1) : '-';
 
   if (!isOpen) return null;
 
@@ -202,6 +234,120 @@ export default function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             <div className="bg-background/50 p-2.5 rounded-[14px] border border-border/50">
               <div className="text-xs text-muted font-bold mb-1">📖 คลังศัพท์</div>
               <div className="text-lg font-black text-success">{myWordCount} คำ</div>
+            </div>
+          </div>
+
+          {/* 3 Learning Skills Analytics Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-main flex items-center gap-1.5">
+                <Brain className="w-4 h-4 text-primary" />
+                การประเมินทักษะการเรียนรู้ (Learning Analytics)
+              </h3>
+              <span className="text-[11px] text-muted font-medium">บันทึกอัตโนมัติในฐานข้อมูล</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Skill 1: Pronunciation */}
+              <div className="bg-surface p-3.5 rounded-[20px] border border-border flex flex-col justify-between hover:border-primary/40 transition-colors">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                      <Mic className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-muted uppercase">ทักษะที่ 1</div>
+                      <div className="text-xs font-black text-main">การออกเสียง (Pronunciation)</div>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 mt-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted">ความแม่นยำ:</span>
+                      <span className="font-black text-primary">{speechAccuracy}%</span>
+                    </div>
+                    <div className="w-full bg-background rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-primary h-1.5 rounded-full transition-all duration-500" style={{ width: `${speechAccuracy}%` }}></div>
+                    </div>
+                    <div className="flex justify-between items-center text-xs pt-1">
+                      <span className="text-muted">พูดรอบเดียวผ่าน:</span>
+                      <span className="font-bold text-success">{firstPassRate}%</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] text-muted">
+                      <span>รอบเดียวผ่าน:</span>
+                      <span className="font-bold text-main">{firstPassCount}/{speechTurns} ตา</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] text-muted">
+                      <span>พูดสำเร็จรวม:</span>
+                      <span className="font-bold text-main">{speechSuccesses}/{speechAttempts} ครั้ง</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Skill 2: Vocabulary Recall */}
+              <div className="bg-surface p-3.5 rounded-[20px] border border-border flex flex-col justify-between hover:border-warning/40 transition-colors">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-xl bg-warning/10 text-warning">
+                      <BookOpen className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-muted uppercase">ทักษะที่ 2</div>
+                      <div className="text-xs font-black text-main">การจำคำศัพท์ (Recall & Depth)</div>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 mt-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted">สูงสุดใน 1 ตา:</span>
+                      <span className="font-black text-warning">{maxWords} คำ</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted">เฉลี่ยต่อแมตช์:</span>
+                      <span className="font-bold text-main">{avgWordsPerGame} คำ</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs pt-1">
+                      <span className="text-muted">คลังศัพท์สะสม:</span>
+                      <span className="font-bold text-success">{vocabSize} คำ</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] text-muted">
+                      <span>คำที่นึกออกทั้งหมด:</span>
+                      <span className="font-bold text-main">{totalWords} คำ</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Skill 3: Semantic Association */}
+              <div className="bg-surface p-3.5 rounded-[20px] border border-border flex flex-col justify-between hover:border-success/40 transition-colors">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-2 rounded-xl bg-success/10 text-success">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-muted uppercase">ทักษะที่ 3</div>
+                      <div className="text-xs font-black text-main">การเชื่อมโยง (Association)</div>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 mt-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted">คะแนน AI เฉลี่ย:</span>
+                      <span className="font-black text-success">{aiAverageScore !== '-' ? `${aiAverageScore}/5.0 ⭐` : '-'}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted">อัตราผ่านประท้วง:</span>
+                      <span className="font-bold text-primary">{challengeDefenseRate}%</span>
+                    </div>
+                    <div className="w-full bg-background rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-success h-1.5 rounded-full transition-all duration-500" style={{ width: `${challengeDefenseRate}%` }}></div>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] text-muted pt-1">
+                      <span>รอดจากการประท้วง:</span>
+                      <span className="font-bold text-main">{challengesWon}/{challengesFaced} ครั้ง</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -3,6 +3,7 @@ import { useGameStore } from '../store/gameStore';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { judgeWordWithAPI } from '../services/apiClient';
+import { recordChallengeTelemetry } from '../services/userService';
 
 export function useChallengeEngine() {
   const isHost = useGameStore(state => state.myUid === state.hostUid);
@@ -68,6 +69,13 @@ export function useChallengeEngine() {
 
         // If votes are equal, the word passes (benefit of the doubt)
         const outcome = failCount > passCount ? 'fail' : 'pass';
+
+        // Record Challenge Telemetry for the speaker
+        recordChallengeTelemetry(
+           challenge.speakerUid,
+           outcome === 'pass',
+           challenge.aiVote?.semanticScore
+        );
 
         // Set revealed phase
         await updateDoc(doc(db, 'rooms', roomId), {

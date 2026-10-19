@@ -23,6 +23,7 @@ def judge_word_ai(previous_word: str, word: str) -> dict:
 {{
   "isNoun": true/false,
   "passWord": true/false,
+  "semanticScore": 5,
   "reason": "อธิบายสั้นๆ 1-2 ประโยค ว่าเป็นคำนามหรือไม่"
 }}
 """
@@ -35,11 +36,12 @@ def judge_word_ai(previous_word: str, word: str) -> dict:
 1. คำปัจจุบันต้องเป็นคำนามหรือคำประสม (ห้ามเป็นประโยค และห้ามเป็นคำกริยาล้วนๆ)
 2. คำปัจจุบันต้องมีความเกี่ยวโยงทางความหมายกับคำก่อนหน้า (อิงจากบริบทใดก็ได้ ขอแค่มีเหตุผลรองรับ)
 
-จงตัดสินว่าคำปัจจุบันให้ผ่านหรือไม่ โดยตอบเป็น JSON format เท่านั้น:
+จงตัดสินว่าคำปัจจุบันให้ผ่านหรือไม่ และให้คะแนนความเชื่อมโยงทางความหมาย (semanticScore) ระดับ 1 ถึง 5 (1 = ไม่เกี่ยวเลย, 3 = พอกล้อมแกล้ม/เชื่อมโยงห่างๆ, 5 = เกี่ยวข้องชัดเจนมาก) โดยตอบเป็น JSON format เท่านั้น:
 {{
   "isNoun": true/false,
   "related": true/false,
   "passWord": true/false,
+  "semanticScore": 1-5,
   "reason": "อธิบายสั้นๆ 1-2 ประโยค ว่าสองคำนี้มีความเกี่ยวข้องกันอย่างไร หรือถ้าไม่เกี่ยว ให้บอกเหตุผลที่ปัดตก (รวมถึงถ้าไม่ใช่คำนามก็ให้ระบุด้วย)"
 }}
 """
@@ -66,14 +68,22 @@ def judge_word_ai(previous_word: str, word: str) -> dict:
             text = text.split("```")[1].split("```")[0]
         
         result = json.loads(text.strip())
+        raw_score = result.get("semanticScore")
+        try:
+            score = max(1, min(5, int(raw_score))) if raw_score is not None else (4 if result.get("passWord", False) else 1)
+        except (ValueError, TypeError):
+            score = 3 if result.get("passWord", False) else 1
+
         return {
-            "pass": result.get("passWord", False),
+            "pass": bool(result.get("passWord", False)),
+            "semanticScore": score,
             "reason": result.get("reason", "ไม่มีเหตุผล")
         }
     except Exception as e:
         print("Gemini API Error:", e)
         return {
             "pass": True,
+            "semanticScore": 4,
             "reason": "AI ขัดข้อง อนุญาตให้ผ่านชั่วคราว"
         }
 
