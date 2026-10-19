@@ -8,10 +8,14 @@ import Auth from './pages/Auth';
 import Home from './pages/Home';
 import Lobby from './pages/Lobby';
 import Game from './pages/Game';
+import AdminDashboard from './pages/AdminDashboard';
 
 function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isDashboard, setIsDashboard] = useState<boolean>(() => {
+    return window.location.hash === '#admin' || window.location.hash === '#/admin' || window.location.hash === '#dashboard';
+  });
 
   const status = useGameStore(state => state.status);
   const roomId = useGameStore(state => state.roomId);
@@ -21,6 +25,18 @@ function App() {
   const setMyEmail = useGameStore(state => state.setMyEmail);
   const setMyStats = useGameStore(state => state.setMyStats);
   const setMyWordStats = useGameStore(state => state.setMyWordStats);
+
+  useEffect(() => {
+    const handleHash = () => {
+      setIsDashboard(
+        window.location.hash === '#admin' ||
+        window.location.hash === '#/admin' ||
+        window.location.hash === '#dashboard'
+      );
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -79,6 +95,18 @@ function App() {
   // Not logged in -> Show Google & Email Auth page
   if (!currentUser) {
     return <Auth />;
+  }
+
+  // Admin / Analytics Dashboard
+  if (isDashboard) {
+    return (
+      <AdminDashboard
+        onBack={() => {
+          window.location.hash = '';
+          setIsDashboard(false);
+        }}
+      />
+    );
   }
 
   return (

@@ -6,7 +6,7 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { getGlobalLeaderboard, type UserProfile } from '../services/userService';
 import ProfileModal from '../components/ProfileModal';
 import DictionaryModal from '../components/DictionaryModal';
-import { Mic, User, Edit3, Sparkles, Trophy, RotateCcw, BookOpen, Percent } from 'lucide-react';
+import { Mic, User, Edit3, Sparkles, Trophy, RotateCcw, BookOpen, Percent, BarChart3 } from 'lucide-react';
 
 type LeaderboardTab = 'wins' | 'words' | 'winrate';
 
@@ -157,23 +157,34 @@ export default function Home() {
           Word Chain Voice
         </div>
         
-        {/* Profile Button in Navbar */}
-        <button 
-          onClick={() => setIsProfileOpen(true)}
-          className="flex items-center gap-3 bg-surface hover:bg-elevated border border-border px-3.5 py-2 rounded-full transition-all group shadow-sm active:scale-95"
-        >
-          <div className="w-8 h-8 rounded-full overflow-hidden bg-primary/20 flex items-center justify-center border border-primary/30">
-            {myPhotoURL ? (
-              <img src={myPhotoURL} alt={myName || ''} className="w-full h-full object-cover" />
-            ) : (
-              <User className="w-4 h-4 text-primary" />
-            )}
-          </div>
-          <span className="text-main font-bold text-sm hidden sm:inline max-w-[120px] truncate">
-            {myName || 'ผู้เล่น'}
-          </span>
-          <Edit3 className="w-4 h-4 text-muted group-hover:text-primary transition-colors" />
-        </button>
+        {/* Action Buttons in Navbar */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { window.location.hash = '#admin'; }}
+            className="flex items-center gap-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 px-3 py-2 rounded-full transition-all text-xs font-bold shadow-sm active:scale-95"
+            title="เปิดแดชบอร์ดวิเคราะห์ผลการเรียนรู้และสถิติภาพรวม"
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span className="hidden sm:inline">แดชบอร์ดสถิติ</span>
+          </button>
+
+          <button 
+            onClick={() => setIsProfileOpen(true)}
+            className="flex items-center gap-2.5 bg-surface hover:bg-elevated border border-border px-3.5 py-1.5 rounded-full transition-all group shadow-sm active:scale-95"
+          >
+            <div className="w-7 h-7 rounded-full overflow-hidden bg-primary/20 flex items-center justify-center border border-primary/30">
+              {myPhotoURL ? (
+                <img src={myPhotoURL} alt={myName || ''} className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-3.5 h-3.5 text-primary" />
+              )}
+            </div>
+            <span className="text-main font-bold text-xs hidden sm:inline max-w-[110px] truncate">
+              {myName || 'ผู้เล่น'}
+            </span>
+            <Edit3 className="w-3.5 h-3.5 text-muted group-hover:text-primary transition-colors" />
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-8">
@@ -244,14 +255,25 @@ export default function Home() {
                   </div>
                 </div>
 
-                <button 
-                  onClick={loadLeaderboard}
-                  disabled={isLeaderboardLoading}
-                  className="p-2 text-muted hover:text-main rounded-xl hover:bg-surface border border-transparent hover:border-border transition-colors disabled:opacity-50"
-                  title="รีเฟรชอันดับ"
-                >
-                  <RotateCcw className={`w-4 h-4 ${isLeaderboardLoading ? 'animate-spin text-primary' : ''}`} />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => { window.location.hash = '#admin'; }}
+                    className="p-1.5 px-2.5 text-xs font-bold text-primary hover:bg-primary/10 rounded-xl border border-primary/25 flex items-center gap-1.5 transition-colors"
+                    title="เปิดแดชบอร์ดกราฟโดยรวมและรายบุคคล"
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">กราฟวิเคราะห์</span>
+                  </button>
+
+                  <button 
+                    onClick={loadLeaderboard}
+                    disabled={isLeaderboardLoading}
+                    className="p-2 text-muted hover:text-main rounded-xl hover:bg-surface border border-transparent hover:border-border transition-colors disabled:opacity-50"
+                    title="รีเฟรชอันดับ"
+                  >
+                    <RotateCcw className={`w-4 h-4 ${isLeaderboardLoading ? 'animate-spin text-primary' : ''}`} />
+                  </button>
+                </div>
               </div>
 
               {/* Category Filter Tabs */}
