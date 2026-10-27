@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { useHostLoop } from '../host/turnEngine';
@@ -34,6 +34,7 @@ export default function Game() {
   const [isScoreboardOpen, setIsScoreboardOpen] = useState<boolean>(false);
   const [isDictionaryOpen, setIsDictionaryOpen] = useState<boolean>(false);
   const [unlockedAchievement, setUnlockedAchievement] = useState<Achievement | null>(null);
+  const [deathReason, setDeathReason] = useState<string>('');
   
   // Enable speech only if it's my turn
   const isMyTurn = myUid === turnUid;
@@ -44,6 +45,12 @@ export default function Game() {
       setTurnAttempts(0);
     }
   }, [turnUid, myUid]);
+
+  useEffect(() => {
+    if (status === 'lobby') {
+      setDeathReason('');
+    }
+  }, [status]);
 
   // Auto record match stats when game finishes
   useEffect(() => {
@@ -58,16 +65,49 @@ export default function Game() {
   useChallengeEngine();
 
   // Speech processing
+  const micReleaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startSpeaking = () => {
+    if (micReleaseTimerRef.current) clearTimeout(micReleaseTimerRef.current);
+    setFeedback('');
+    setIsSpeaking(true);
+  };
+
+  const stopSpeaking = () => {
+    setIsSpeaking(false);
+    if (micReleaseTimerRef.current) clearTimeout(micReleaseTimerRef.current);
+    micReleaseTimerRef.current = setTimeout(() => {
+      setFeedback(prev => {
+        if (!prev || prev === 'กำลังฟัง...') {
+          return 'ฟังไม่ชัดเจน กดไมค์พูดใหม่ได้เลยครับ';
+        }
+        return prev;
+      });
+    }, 700);
+  };
+
   const { interimText, error: speechError } = useSpeechRecognition({
     active: isMyTurn && status === 'playing' && isSpeaking,
     onFinalResult: async (text) => {
       if (!isMyTurn || status !== 'playing') return;
+      if (micReleaseTimerRef.current) clearTimeout(micReleaseTimerRef.current);
+
+      const trimmed = text.trim();
+      const hasLetters = /[ก-๙a-zA-Z]/.test(trimmed);
+
+      // ถ้าฟังไม่รู้เรื่อง (ไม่มีตัวอักษร / ว่างเปล่า / เสียงรบกวนสั้นๆ): ให้พูดใหม่ ไม่ตาย!
+      if (!hasLetters || trimmed.length === 0) {
+        setFeedback('ฟังไม่ชัดเจน กดไมค์พูดใหม่ได้เลยครับ');
+        setIsSpeaking(false);
+        return;
+      }
+
       const currentAttempt = turnAttempts + 1;
       setTurnAttempts(currentAttempt);
 
-      setFeedback(`กำลังตรวจสอบ: "${text}"...`);
+      setFeedback(`กำลังตรวจสอบ: "${trimmed}"...`);
       try {
-        const result = await checkWordWithAPI(text, usedSyllables);
+        const result = await checkWordWithAPI(trimmed, usedSyllables);
         if (result.valid) {
           // Success! Next player's turn
           if (myUid) {
@@ -77,27 +117,84 @@ export default function Game() {
               turnCompleted: true
             });
           }
-          await handleTurnSuccess(result.syllables, text);
+          await handleTurnSuccess(result.syllables, trimmed);
           setFeedback('');
         } else {
+          // ฟังรู้เรื่องแต่ผิดกฎ (คำซ้ำ, พยางค์ซ้ำ, ไม่ใช่คำนาม, เป็นประโยค) -> ตายเลย! (Sudden Death)
           if (myUid) {
             recordSpeechTelemetry(myUid, {
-              attemptSuccess: false
+              attemptSuccess: false,
+              isFirstAttempt: currentAttempt === 1,
+              turnCompleted: false
             });
           }
-          setFeedback(`คำว่า "${text}" ไม่ผ่าน: ${result.reason === 'is_sentence' ? 'เป็นประโยค' : result.reason === 'not_a_noun' ? 'ไม่ใช่คำนาม' : result.reason} (กดไมค์พูดใหม่ได้เลย)`);
+          const failureReason = result.reason === 'is_sentence' 
+            ? 'เป็นประโยค' 
+            : result.reason === 'not_a_noun' 
+            ? 'ไม่ใช่คำนาม' 
+            : result.reason;
+          setFeedback(`คำว่า "${trimmed}" ไม่ผ่าน: ${failureReason} (ผิดกฎ ตกรอบทันที!)`);
+          await handleTurnFailure(failureReason, trimmed);
         }
       } catch (err) {
+        // ตรวจสอบกับระบบไม่สำเร็จ (เช่น ปัญหาเน็ต) -> ให้พูดใหม่ได้ ไม่ตาย!
         if (myUid) {
           recordSpeechTelemetry(myUid, {
             attemptSuccess: false
           });
         }
-        setFeedback(`ตรวจสอบไม่สำเร็จ ลองพูดใหม่ครับ`);
+        setFeedback(`ตรวจสอบไม่สำเร็จ ลองกดไมค์พูดใหม่ครับ`);
       }
       setIsSpeaking(false);
     }
   });
+
+  const handleTurnFailure = async (failureReason: string, word: string) => {
+    if (!roomId || !turnUid || status !== 'playing') return;
+
+    setDeathReason(`คำว่า "${word}" ${failureReason}`);
+
+    const updatedPlayers = { ...players };
+    if (updatedPlayers[turnUid]) {
+      updatedPlayers[turnUid].alive = false;
+    }
+
+    // Find alive players
+    const sortedPlayers = Object.values(updatedPlayers).sort((a, b) => a.order - b.order);
+    const alivePlayers = sortedPlayers.filter(p => p.alive && !p.isSpectator);
+
+    if (alivePlayers.length <= 1) {
+      // Game Over
+      await updateDoc(doc(db, `rooms/${roomId}/players`, turnUid), {
+        alive: false
+      });
+      await updateDoc(doc(db, 'rooms', roomId), {
+        status: 'finished',
+        turnUid: null,
+        turnEndTime: null
+      });
+    } else {
+      // Find next alive player
+      const currentIndex = sortedPlayers.findIndex(p => p.uid === turnUid);
+      let nextIndex = (currentIndex + 1) % sortedPlayers.length;
+      let loopCount = 0;
+      while ((!sortedPlayers[nextIndex].alive || sortedPlayers[nextIndex].isSpectator) && loopCount < sortedPlayers.length) {
+        nextIndex = (nextIndex + 1) % sortedPlayers.length;
+        loopCount++;
+      }
+
+      const nextPlayerUid = sortedPlayers[nextIndex].uid;
+
+      // Mark current player dead & set next player with a full 15-second window from NOW
+      await updateDoc(doc(db, `rooms/${roomId}/players`, turnUid), {
+        alive: false
+      });
+      await updateDoc(doc(db, 'rooms', roomId), {
+        turnUid: nextPlayerUid,
+        turnEndTime: Date.now() + 15000
+      });
+    }
+  };
 
   const handleTurnSuccess = async (newSyllables: string[], word: string) => {
     if (!roomId || !turnUid) return;
@@ -281,8 +378,15 @@ export default function Game() {
                 </>
              ) : (
                 <>
-                   <h1 className="text-4xl font-black mb-4 text-danger drop-shadow-md">คุณตกรอบแล้ว!</h1>
-                   <p className="text-lg text-muted">รอเกมจบ หรือรอดูการ Challenge...</p>
+                   <h1 className="text-4xl font-black mb-2 text-danger drop-shadow-md">คุณตกรอบแล้ว!</h1>
+                   {deathReason ? (
+                     <div className="bg-danger/10 text-danger border border-danger/20 font-bold px-3 py-1.5 rounded-xl text-sm mb-3">
+                       {deathReason}
+                     </div>
+                   ) : (
+                     <p className="text-sm text-danger/80 font-bold mb-3">หมดเวลา 15 วินาที</p>
+                   )}
+                   <p className="text-sm text-muted">รอเกมจบ หรือรอดูการ Challenge เพื่อช่วยเพื่อนโหวต...</p>
                 </>
              )}
             </div>
@@ -546,16 +650,10 @@ export default function Game() {
                {isMyTurn ? (
                  <>
                    <button
-                     onMouseDown={() => { setFeedback(''); setIsSpeaking(true); }}
-                     onMouseUp={() => {
-                        setIsSpeaking(false);
-                        setTimeout(() => setFeedback(prev => prev || 'กำลังตรวจคำ...'), 100);
-                     }}
-                     onTouchStart={() => { setFeedback(''); setIsSpeaking(true); }}
-                     onTouchEnd={() => {
-                        setIsSpeaking(false);
-                        setTimeout(() => setFeedback(prev => prev || 'กำลังตรวจคำ...'), 100);
-                     }}
+                     onMouseDown={startSpeaking}
+                     onMouseUp={stopSpeaking}
+                     onTouchStart={startSpeaking}
+                     onTouchEnd={stopSpeaking}
                      className={`w-28 h-28 rounded-full transition-all flex items-center justify-center shadow-xl mb-4 ${isSpeaking ? 'bg-danger scale-105 animate-pulse shadow-danger/40' : 'bg-primary hover:bg-primary/90 hover:scale-105 shadow-primary/30'}`}
                    >
                      <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
