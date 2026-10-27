@@ -660,9 +660,21 @@ export default function Game() {
             <div className="bg-elevated rounded-[24px] border border-border p-8 flex flex-col items-center text-center relative overflow-hidden shrink-0">
                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary to-success"></div>
                
-               <p className="text-sm font-bold text-muted mb-2 uppercase tracking-widest">ต่อจากคำนี้</p>
-               <div className="text-4xl md:text-5xl font-black text-main mb-6 drop-shadow-sm min-h-[3rem]">
-                  {words.length > 0 ? words[words.length-1] : '- เริ่มเกมได้ -'}
+               <p className="text-sm font-bold text-muted mb-2 uppercase tracking-widest">
+                  {words.length >= 2 ? 'ลำดับคำ (ต่อจากคำขวา)' : 'ต่อจากคำนี้'}
+               </p>
+               <div className="text-3xl sm:text-4xl md:text-5xl font-black text-main mb-6 drop-shadow-sm min-h-[3rem] flex items-center justify-center flex-wrap gap-2 md:gap-3">
+                  {words.length >= 2 ? (
+                    <>
+                      <span className="text-muted/60 font-bold text-2xl md:text-3xl">{words[words.length - 2]}</span>
+                      <span className="text-primary font-bold text-xl md:text-2xl">→</span>
+                      <span className="text-primary font-black drop-shadow-sm">{words[words.length - 1]}</span>
+                    </>
+                  ) : words.length === 1 ? (
+                    <span className="text-primary font-black drop-shadow-sm">{words[0]}</span>
+                  ) : (
+                    <span className="text-muted font-bold text-2xl md:text-3xl">- เริ่มเกมได้ -</span>
+                  )}
                </div>
                
                <div className="relative flex items-center justify-center mb-6">
