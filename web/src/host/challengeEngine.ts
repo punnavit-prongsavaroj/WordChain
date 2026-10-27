@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -14,11 +14,22 @@ export function useChallengeEngine() {
   const words = useGameStore(state => state.words);
   const usedSyllables = useGameStore(state => state.usedSyllables);
 
+  const isTallyingRef = useRef(false);
+  const aiJudgingRef = useRef(false);
+
+  useEffect(() => {
+    if (status !== 'challenge' || !challenge || challenge.phase !== 'voting') {
+      isTallyingRef.current = false;
+      aiJudgingRef.current = false;
+    }
+  }, [status, challenge]);
+
   useEffect(() => {
     if (!isHost || status !== 'challenge' || !roomId || !challenge || challenge.phase !== 'voting') return;
 
     // AI Judge automatically if not yet judged
-    if (challenge.aiVote === undefined) {
+    if (challenge.aiVote === undefined && !aiJudgingRef.current) {
+      aiJudgingRef.current = true;
       const getAiVote = async () => {
         try {
           const previousWord = words.length >= 2 ? words[words.length - 2] : '';
@@ -45,6 +56,10 @@ export function useChallengeEngine() {
       const aiVoted = challenge.aiVote !== undefined;
 
       if (now >= challenge.endTime || (allVoted && aiVoted)) {
+        if (isTallyingRef.current) return;
+        isTallyingRef.current = true;
+        clearInterval(interval);
+
         // Tally votes
         let passCount = 0;
         let failCount = 0;
@@ -83,11 +98,14 @@ export function useChallengeEngine() {
           'challenge.result': { passCount, failCount, outcome }
         });
 
-        // After 5 seconds, resume game
+        // After 5 seconds, resume game with a fresh 15-second turn
         setTimeout(async () => {
+           const latestStore = useGameStore.getState();
+           const latestPlayers = latestStore.players;
+           const latestWords = latestStore.words;
+
            let nextTurnUid = challenge.speakerUid;
-           let nextTurnTime = Date.now() + 15000;
-           let updatedWords = [...words];
+           let updatedWords = [...latestWords];
 
            if (outcome === 'fail') {
                // Speaker dies
@@ -95,25 +113,26 @@ export function useChallengeEngine() {
                    alive: false
                });
                
-               // Revert word and syllables
-               updatedWords.pop();
+               // Revert word
+               if (updatedWords.length > 0) {
+                 updatedWords.pop();
+               }
                
                // Turn goes to challenger or next alive
                nextTurnUid = challenge.challengerUid;
-               nextTurnTime = Date.now() + 15000;
            } else {
                // Challenger dies
                await updateDoc(doc(db, `rooms/${roomId}/players`, challenge.challengerUid), {
                    alive: false
                });
                nextTurnUid = challenge.nextTurnUid;
-               nextTurnTime = Date.now() + 15000;
            }
 
            // If the assigned nextTurnUid is dead (e.g. they were the challenger or speaker who just died),
            // find the next alive player
-           const sortedPlayers = Object.values(players).sort((a, b) => a.order - b.order);
+           const sortedPlayers = Object.values(latestPlayers).sort((a, b) => a.order - b.order);
            let targetIndex = sortedPlayers.findIndex(p => p.uid === nextTurnUid);
+           if (targetIndex === -1) targetIndex = 0;
            
            // Temporarily mark the newly dead person as dead in our local array for the loop check
            const deadUid = outcome === 'fail' ? challenge.speakerUid : challenge.challengerUid;
@@ -123,26 +142,30 @@ export function useChallengeEngine() {
            while (!simulatedPlayers[targetIndex]?.alive && loops < simulatedPlayers.length) {
                targetIndex = (targetIndex + 1) % simulatedPlayers.length;
                loops++;
-               nextTurnTime = Date.now() + 15000; // Reset time if we advanced turn
            }
            
-           nextTurnUid = simulatedPlayers[targetIndex].uid;
+           nextTurnUid = simulatedPlayers[targetIndex]?.uid;
 
            // Check if game is over (only 1 or 0 alive left)
            const aliveCount = simulatedPlayers.filter(p => p.alive && !p.isSpectator).length;
            if (aliveCount <= 1) {
                await updateDoc(doc(db, 'rooms', roomId), {
                    status: 'finished',
-                   challenge: null
+                   challenge: null,
+                   turnUid: null,
+                   turnEndTime: null
                });
                return;
            }
+
+           // Give a fresh full 15-second turn window from the exact moment we resume
+           const freshTurnEndTime = Date.now() + 15000;
 
            await updateDoc(doc(db, 'rooms', roomId), {
                status: 'playing',
                challenge: null,
                turnUid: nextTurnUid,
-               turnEndTime: nextTurnTime,
+               turnEndTime: freshTurnEndTime,
                words: updatedWords
            });
 

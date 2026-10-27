@@ -159,6 +159,7 @@ export default function Game() {
 
      await updateDoc(doc(db, 'rooms', roomId), {
         status: 'challenge',
+        turnEndTime: null,
         challenge: {
            challengerUid: myUid,
            speakerUid: speakerUid,
@@ -186,7 +187,7 @@ export default function Game() {
 
       const interval = setInterval(() => {
         const now = Date.now();
-        if (turnEndTime && turnEndTime > now) {
+        if (turnEndTime) {
           const serverRemaining = Math.max(0, Math.ceil((turnEndTime - now) / 1000));
           setTimeLeft(serverRemaining);
         } else {

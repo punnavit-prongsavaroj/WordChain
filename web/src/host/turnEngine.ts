@@ -13,33 +13,56 @@ export function useHostLoop() {
 
   const isProcessing = useRef(false);
   const currentTurnUidRef = useRef<string | null>(null);
+  const prevStatusRef = useRef<string | null>(null);
   const turnStartTimeRef = useRef<number>(Date.now());
+  const prevTurnEndTimeRef = useRef<number | null>(null);
   const lastProcessedTurnUid = useRef<string | null>(null);
 
   // Track when a new turn begins on Host to prevent clock-skew instant kills
   useEffect(() => {
-    if (turnUid !== currentTurnUidRef.current) {
-      currentTurnUidRef.current = turnUid;
-      turnStartTimeRef.current = Date.now();
-      isProcessing.current = false;
+    if (status === 'playing' && turnUid) {
+      const isNewTurnUid = turnUid !== currentTurnUidRef.current;
+      const isNewStatus = prevStatusRef.current !== 'playing';
+      // If turnEndTime was pushed forward by > 5 seconds, treat as fresh turn window
+      const isTurnExtended = Boolean(
+        turnEndTime && 
+        prevTurnEndTimeRef.current && 
+        (turnEndTime - prevTurnEndTimeRef.current > 5000)
+      );
+
+      if (isNewTurnUid || isNewStatus || isTurnExtended) {
+        currentTurnUidRef.current = turnUid;
+        turnStartTimeRef.current = Date.now();
+        isProcessing.current = false;
+        lastProcessedTurnUid.current = null;
+      }
+    } else if (status !== 'playing') {
+      currentTurnUidRef.current = null;
       lastProcessedTurnUid.current = null;
+      isProcessing.current = false;
     }
-  }, [turnUid]);
+    prevStatusRef.current = status;
+    prevTurnEndTimeRef.current = turnEndTime;
+  }, [turnUid, status, turnEndTime]);
 
   useEffect(() => {
-    if (!isHost || status !== 'playing' || !roomId || !turnUid) return;
+    if (!isHost || status !== 'playing' || !roomId || !turnUid || !turnEndTime) return;
 
     const interval = setInterval(async () => {
       const now = Date.now();
       const elapsedSinceTurnStart = now - turnStartTimeRef.current;
       
-      // Player has 15 seconds. Must have elapsed at least 15 seconds on Host's clock!
-      const isExpiredByTimestamp = turnEndTime ? now >= turnEndTime : false;
-      const hasHadFullTurnTime = elapsedSinceTurnStart >= 15000;
+      // Both server turnEndTime must be expired AND host must have observed at least 14s elapsed
+      const isExpiredByTimestamp = now >= turnEndTime;
+      const hasHadFullTurnTime = elapsedSinceTurnStart >= 14000;
+      // Fallback safeguard: if host observed >= 16s elapsed since turn start, consider expired
+      const isSafetyTimeout = elapsedSinceTurnStart >= 16000;
 
-      // Only expire if BOTH (or if elapsed time on Host is >= 15 seconds)
-      // and we are not already processing this turn
-      if ((hasHadFullTurnTime || (isExpiredByTimestamp && elapsedSinceTurnStart >= 14000)) && !isProcessing.current) {
+      // Only expire if:
+      // 1. (Server turnEndTime has passed AND host observed >= 14s) OR
+      // 2. Host observed >= 16s as safety fallback
+      // AND we are not already processing this turn
+      if (((isExpiredByTimestamp && hasHadFullTurnTime) || isSafetyTimeout) && !isProcessing.current) {
         if (lastProcessedTurnUid.current === turnUid) return;
 
         isProcessing.current = true;
@@ -63,6 +86,7 @@ export function useHostLoop() {
             await updateDoc(doc(db, 'rooms', roomId), {
               status: 'finished',
               turnUid: null,
+              turnEndTime: null
             });
           } else {
             // Move to next player
