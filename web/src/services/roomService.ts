@@ -103,7 +103,8 @@ export const subscribeToRoom = (roomId: string) => {
         words: data.words || [],
         challenge: data.challenge || null,
         turnUid: data.turnUid || null,
-        turnEndTime: data.turnEndTime || null
+        turnEndTime: data.turnEndTime || null,
+        lastDeath: data.lastDeath || null
       });
     }
   });

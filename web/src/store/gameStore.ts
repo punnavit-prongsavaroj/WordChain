@@ -18,6 +18,12 @@ export interface Player {
   wordCount?: number;
 }
 
+export interface LastDeathInfo {
+  uid: string;
+  name: string;
+  reason: string;
+}
+
 export interface GameState {
   roomId: string | null;
   code: string | null;
@@ -37,6 +43,7 @@ export interface GameState {
   myWordCount: number;
   myTitle: string;
   challenge: any | null; // challenge object
+  lastDeath: LastDeathInfo | null;
   
   // Actions
   setRoomData: (data: Partial<GameState>) => void;
@@ -68,6 +75,7 @@ export const useGameStore = create<GameState>((set) => ({
   myWordCount: 0,
   myTitle: 'ผู้ฝึกต่อคำ',
   challenge: null,
+  lastDeath: null,
 
   setRoomData: (data) => set((state) => ({ ...state, ...data })),
   setMyUid: (uid) => set({ myUid: uid }),
@@ -89,6 +97,6 @@ export const useGameStore = create<GameState>((set) => ({
   })),
   reset: () => set({
     roomId: null, code: null, hostUid: null, status: 'lobby',
-    players: {}, usedSyllables: [], words: [], turnUid: null, turnEndTime: null, challenge: null
+    players: {}, usedSyllables: [], words: [], turnUid: null, turnEndTime: null, challenge: null, lastDeath: null
   }),
 }));

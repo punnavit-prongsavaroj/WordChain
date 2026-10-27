@@ -25,6 +25,7 @@ export default function Game() {
   const words = useGameStore(state => state.words);
   const challenge = useGameStore(state => state.challenge);
   const status = useGameStore(state => state.status);
+  const lastDeath = useGameStore(state => state.lastDeath);
   const setMyWordStats = useGameStore(state => state.setMyWordStats);
   
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -152,7 +153,9 @@ export default function Game() {
   const handleTurnFailure = async (failureReason: string, word: string) => {
     if (!roomId || !turnUid || status !== 'playing') return;
 
-    setDeathReason(`คำว่า "${word}" ${failureReason}`);
+    const deadPlayerName = players[turnUid]?.name || 'ผู้เล่น';
+    const reasonText = `คำว่า "${word}" ${failureReason}`;
+    setDeathReason(reasonText);
 
     const updatedPlayers = { ...players };
     if (updatedPlayers[turnUid]) {
@@ -164,15 +167,27 @@ export default function Game() {
     const alivePlayers = sortedPlayers.filter(p => p.alive && !p.isSpectator);
 
     if (alivePlayers.length <= 1) {
-      // Game Over
+      // Game Over: Mark player dead & show death reason for 3 seconds before finishing
       await updateDoc(doc(db, `rooms/${roomId}/players`, turnUid), {
         alive: false
       });
       await updateDoc(doc(db, 'rooms', roomId), {
-        status: 'finished',
-        turnUid: null,
+        lastDeath: {
+          uid: turnUid,
+          name: deadPlayerName,
+          reason: reasonText
+        },
         turnEndTime: null
       });
+
+      // Wait 3 seconds so everyone can see the reason for losing before showing victory screen
+      setTimeout(async () => {
+        await updateDoc(doc(db, 'rooms', roomId), {
+          status: 'finished',
+          turnUid: null,
+          turnEndTime: null
+        });
+      }, 3000);
     } else {
       // Find next alive player
       const currentIndex = sortedPlayers.findIndex(p => p.uid === turnUid);
@@ -190,6 +205,11 @@ export default function Game() {
         alive: false
       });
       await updateDoc(doc(db, 'rooms', roomId), {
+        lastDeath: {
+          uid: turnUid,
+          name: deadPlayerName,
+          reason: reasonText
+        },
         turnUid: nextPlayerUid,
         turnEndTime: Date.now() + 15000
       });
@@ -304,6 +324,7 @@ export default function Game() {
   }, [turnUid, turnEndTime, status, challenge]);
 
   const sortedPlayers = Object.values(players).sort((a, b) => a.order - b.order);
+  const alivePlayers = sortedPlayers.filter(p => p.alive && !p.isSpectator);
   const myPlayer = players[myUid || ''];
 
   let lastSpeakerUid = null;
@@ -341,7 +362,16 @@ export default function Game() {
              </div>
 
              <div className="text-3xl sm:text-4xl text-main font-black mb-2 drop-shadow-md">{winner?.name || 'ไม่มีผู้ชนะ'}</div>
-             <p className="mb-6 text-sm font-medium text-muted">คำศัพท์ที่พูดไปในรอบนี้ทั้งหมด {words.length} คำ</p>
+             <p className="mb-4 text-sm font-medium text-muted">คำศัพท์ที่พูดไปในรอบนี้ทั้งหมด {words.length} คำ</p>
+
+             {lastDeath && (
+               <div className="bg-danger/10 border border-danger/20 rounded-2xl px-4 py-2.5 mb-6 max-w-sm text-center">
+                 <div className="text-xs text-danger font-bold uppercase tracking-wider mb-0.5">สาเหตุที่จบเกม</div>
+                 <div className="text-sm font-bold text-main">
+                   <span className="text-danger font-black">{lastDeath.name}</span> ตกรอบ: {lastDeath.reason}
+                 </div>
+               </div>
+             )}
 
              {/* Action buttons */}
              <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
@@ -354,7 +384,7 @@ export default function Game() {
                </button>
                {isHost && (
                  <button 
-                   onClick={() => updateDoc(doc(db, 'rooms', roomId!), { status: 'lobby' })} 
+                   onClick={() => updateDoc(doc(db, 'rooms', roomId!), { status: 'lobby', lastDeath: null })} 
                    className="bg-primary hover:bg-primary/90 text-white px-8 py-3.5 rounded-[16px] font-bold text-base shadow-lg transition-all active:scale-95"
                  >
                    เล่นอีกครั้ง 🔄
@@ -429,6 +459,24 @@ export default function Game() {
       </div>
 
       {renderDeadOrFinishedOverlay()}
+
+      {/* 3-Second Dramatic Pause Overlay when the last person loses */}
+      {status === 'playing' && lastDeath && alivePlayers.length <= 1 && (
+        <div className="absolute inset-0 bg-background/85 backdrop-blur-md z-40 flex flex-col items-center justify-center p-6 text-center animate-fade-in pointer-events-none">
+          <div className="bg-elevated border-2 border-danger/40 p-8 rounded-[28px] shadow-2xl flex flex-col items-center max-w-md w-full pointer-events-auto">
+            <div className="text-6xl mb-3 animate-bounce">💀</div>
+            <h2 className="text-2xl font-black text-danger mb-2">
+              {lastDeath.name} ตกรอบ!
+            </h2>
+            <div className="bg-danger/10 text-danger border border-danger/20 font-bold px-4 py-2.5 rounded-2xl text-base mb-4">
+              {lastDeath.reason}
+            </div>
+            <p className="text-xs text-muted font-bold animate-pulse">
+              เหลือผู้รอดชีวิตคนสุดท้าย... กำลังเข้าสู่หน้าประกาศผลผู้ชนะ 🏆
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Challenge Modal Overlay */}
       {status === 'challenge' && challenge && (

@@ -149,12 +149,28 @@ export function useChallengeEngine() {
            // Check if game is over (only 1 or 0 alive left)
            const aliveCount = simulatedPlayers.filter(p => p.alive && !p.isSpectator).length;
            if (aliveCount <= 1) {
+               const deadPlayerName = latestPlayers[deadUid]?.name || 'ผู้เล่น';
+               const challengeReason = outcome === 'fail' 
+                 ? 'คำไม่ผ่านการท้าประท้วง' 
+                 : 'ประท้วงไม่สำเร็จ (ตกรอบ)';
+
                await updateDoc(doc(db, 'rooms', roomId), {
-                   status: 'finished',
-                   challenge: null,
-                   turnUid: null,
+                   lastDeath: {
+                       uid: deadUid,
+                       name: deadPlayerName,
+                       reason: challengeReason
+                   },
                    turnEndTime: null
                });
+
+               setTimeout(async () => {
+                   await updateDoc(doc(db, 'rooms', roomId), {
+                       status: 'finished',
+                       challenge: null,
+                       turnUid: null,
+                       turnEndTime: null
+                   });
+               }, 3000);
                return;
            }
 

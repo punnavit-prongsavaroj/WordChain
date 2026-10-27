@@ -78,16 +78,29 @@ export function useHostLoop() {
           const sortedPlayers = Object.values(updatedPlayers).sort((a, b) => a.order - b.order);
           const alivePlayers = sortedPlayers.filter(p => p.alive && !p.isSpectator);
 
+          const deadPlayerName = players[turnUid]?.name || 'ผู้เล่น';
+
           if (alivePlayers.length <= 1) {
-            // Game Over
+            // Game Over: Mark player dead & show timeout reason for 3 seconds before finishing
             await updateDoc(doc(db, `rooms/${roomId}/players`, turnUid), {
               alive: false
             });
             await updateDoc(doc(db, 'rooms', roomId), {
-              status: 'finished',
-              turnUid: null,
+              lastDeath: {
+                uid: turnUid,
+                name: deadPlayerName,
+                reason: 'หมดเวลา 15 วินาที'
+              },
               turnEndTime: null
             });
+
+            setTimeout(async () => {
+              await updateDoc(doc(db, 'rooms', roomId), {
+                status: 'finished',
+                turnUid: null,
+                turnEndTime: null
+              });
+            }, 3000);
           } else {
             // Move to next player
             const currentIndex = sortedPlayers.findIndex(p => p.uid === turnUid);
@@ -105,6 +118,11 @@ export function useHostLoop() {
               alive: false
             });
             await updateDoc(doc(db, 'rooms', roomId), {
+              lastDeath: {
+                uid: turnUid,
+                name: deadPlayerName,
+                reason: 'หมดเวลา 15 วินาที'
+              },
               turnUid: nextPlayerUid,
               turnEndTime: Date.now() + 15000
             });
